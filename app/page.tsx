@@ -240,7 +240,7 @@ export default function Home() {
               </div>
               <span className="font-semibold">Watchtower</span>
             </div>
-            <p className="text-sm text-muted-foreground">© 2024 Watchtower. All rights reserved.</p>
+            <p className="text-sm text-muted-foreground">© 2026 Watchtower. All rights reserved.</p>
           </div>
         </footer>
       </div>
