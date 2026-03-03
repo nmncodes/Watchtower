@@ -57,3 +57,4 @@ Desktop.ini
 # Misc
 *.pem
 *.log
+/lib/generated/prisma
