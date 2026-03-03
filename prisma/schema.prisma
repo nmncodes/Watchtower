@@ -64,8 +64,8 @@ model Check {
   id           String      @id @default(cuid())
   monitorId    String
   status       CheckStatus
-  responseTime Int         // ms
-  code         Int?        // HTTP status code
+  responseTime Int // ms
+  code         Int? // HTTP status code
   createdAt    DateTime    @default(now())
 
   monitor Monitor @relation(fields: [monitorId], references: [id], onDelete: Cascade)
@@ -110,13 +110,14 @@ model IncidentUpdate {
 
 // ── Status Pages ───────────────────────────────────────────
 
+
 model StatusPage {
-  id          String  @id @default(cuid())
+  id          String   @id @default(cuid())
   userId      String
-  slug        String  @unique
+  slug        String   @unique
   title       String
   description String?
-  isPublic    Boolean @default(true)
+  isPublic    Boolean  @default(true)
   createdAt   DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
