@@ -1,29 +1,56 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Activity, CheckCircle2, AlertCircle, TrendingUp, ArrowRight } from 'lucide-react';
+import { Activity, CheckCircle2, AlertCircle, TrendingUp, ArrowRight, Plus, Bell, Share2, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
-const responseTimeData = [
-  { time: '12:00', value: 145 },
-  { time: '1:00', value: 152 },
-  { time: '2:00', value: 148 },
-  { time: '3:00', value: 156 },
-  { time: '4:00', value: 143 },
-  { time: '5:00', value: 150 },
-  { time: '6:00', value: 147 },
-  { time: '7:00', value: 154 },
-];
+interface Monitor {
+  id: string;
+  name: string;
+  url: string;
+  status: string;
+  lastCheckAt: string | null;
+}
+
+interface Incident {
+  id: string;
+  status: string;
+  summary: string | null;
+  startedAt: string;
+  monitor: { id: string; name: string };
+}
 
 export default function Dashboard() {
-  const monitors = [
-    { id: 1, name: 'API Server', status: 'up', uptime: 99.98, lastCheck: '2 min ago' },
-    { id: 2, name: 'Web App', status: 'up', uptime: 99.95, lastCheck: '1 min ago' },
-    { id: 3, name: 'Database', status: 'up', uptime: 99.92, lastCheck: '3 min ago' },
-    { id: 4, name: 'CDN', status: 'up', uptime: 100, lastCheck: 'now' },
-  ];
+  const [monitors, setMonitors] = useState<Monitor[]>([]);
+  const [incidents, setIncidents] = useState<Incident[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([
+      fetch('/api/monitors').then((r) => r.json()),
+      fetch('/api/incidents').then((r) => r.json()),
+    ])
+      .then(([m, i]) => {
+        setMonitors(m);
+        setIncidents(i);
+      })
+      .catch((err) => console.error(err))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const upCount = monitors.filter((m) => m.status === 'UP').length;
+  const recentIncidents = incidents.filter((i) => i.status !== 'RESOLVED').slice(0, 5);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -38,7 +65,7 @@ export default function Dashboard() {
           <div className="flex items-start justify-between">
             <div>
               <p className="text-sm text-muted-foreground mb-1">Active Monitors</p>
-              <p className="text-3xl font-bold">4</p>
+              <p className="text-3xl font-bold">{monitors.length}</p>
             </div>
             <Activity className="w-8 h-8 text-primary opacity-20" />
           </div>
@@ -48,7 +75,9 @@ export default function Dashboard() {
           <div className="flex items-start justify-between">
             <div>
               <p className="text-sm text-muted-foreground mb-1">All Up</p>
-              <p className="text-3xl font-bold text-green-600">4/4</p>
+              <p className="text-3xl font-bold text-green-600">
+                {upCount}/{monitors.length}
+              </p>
             </div>
             <CheckCircle2 className="w-8 h-8 text-green-600 opacity-20" />
           </div>
@@ -57,8 +86,8 @@ export default function Dashboard() {
         <Card className="p-6">
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-sm text-muted-foreground mb-1">Avg Uptime</p>
-              <p className="text-3xl font-bold">99.96%</p>
+              <p className="text-sm text-muted-foreground mb-1">Open Incidents</p>
+              <p className="text-3xl font-bold">{recentIncidents.length}</p>
             </div>
             <TrendingUp className="w-8 h-8 text-blue-600 opacity-20" />
           </div>
@@ -67,8 +96,8 @@ export default function Dashboard() {
         <Card className="p-6">
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-sm text-muted-foreground mb-1">Incidents (30d)</p>
-              <p className="text-3xl font-bold">0</p>
+              <p className="text-sm text-muted-foreground mb-1">Total Incidents</p>
+              <p className="text-3xl font-bold">{incidents.length}</p>
             </div>
             <AlertCircle className="w-8 h-8 text-muted-foreground opacity-20" />
           </div>
@@ -115,22 +144,25 @@ export default function Dashboard() {
                 </Button>
               </Link>
             </div>
-            <div className="space-y-3">
-              {monitors.map((monitor) => (
-                <div key={monitor.id} className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-3 h-3 rounded-full ${monitor.status === 'up' ? 'bg-green-600' : 'bg-red-600'}`} />
-                    <div>
-                      <p className="font-medium">{monitor.name}</p>
-                      <p className="text-sm text-muted-foreground">{monitor.uptime}% uptime</p>
+            {monitors.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-8">No monitors yet</p>
+            ) : (
+              <div className="space-y-3">
+                {monitors.map((monitor) => (
+                  <Link key={monitor.id} href={`/dashboard/monitors/${monitor.id}`}>
+                    <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg hover:bg-muted transition">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-3 h-3 rounded-full ${monitor.status === 'UP' ? 'bg-green-600' : monitor.status === 'DOWN' ? 'bg-red-600' : 'bg-gray-400'}`} />
+                        <div>
+                          <p className="font-medium">{monitor.name}</p>
+                          <p className="text-sm text-muted-foreground capitalize">{monitor.status.toLowerCase()}</p>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm text-muted-foreground">{monitor.lastCheck}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
+                  </Link>
+                ))}
+              </div>
+            )}
           </Card>
         </div>
 
@@ -160,15 +192,27 @@ export default function Dashboard() {
           {/* Recent Incidents */}
           <Card className="p-6">
             <h3 className="font-semibold mb-4">Recent Incidents</h3>
-            <div className="text-center py-8">
-              <CheckCircle2 className="w-12 h-12 text-green-600 mx-auto mb-2 opacity-50" />
-              <p className="text-sm text-muted-foreground">No incidents in the last 30 days</p>
-            </div>
+            {recentIncidents.length === 0 ? (
+              <div className="text-center py-8">
+                <CheckCircle2 className="w-12 h-12 text-green-600 mx-auto mb-2 opacity-50" />
+                <p className="text-sm text-muted-foreground">No open incidents</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {recentIncidents.map((inc) => (
+                  <div key={inc.id} className="flex items-start gap-3 pb-3 border-b border-border last:border-0">
+                    <AlertCircle className="w-4 h-4 text-red-600 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-medium">{inc.summary ?? inc.monitor.name}</p>
+                      <p className="text-xs text-muted-foreground capitalize">{inc.status.toLowerCase()}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </Card>
         </div>
       </div>
     </div>
   );
 }
-
-import { Plus, Bell, Share2 } from 'lucide-react';

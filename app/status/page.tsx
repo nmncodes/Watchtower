@@ -1,58 +1,53 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
-import { CheckCircle2, XCircle, AlertCircle, TrendingUp, Calendar } from 'lucide-react';
+import { CheckCircle2, XCircle, AlertCircle, TrendingUp, Loader2 } from 'lucide-react';
+
+interface Monitor {
+  id: string;
+  name: string;
+  status: string;
+  url: string;
+}
+
+interface Incident {
+  id: string;
+  status: string;
+  summary: string | null;
+  startedAt: string;
+  resolvedAt: string | null;
+  monitor: { id: string; name: string };
+}
 
 export default function StatusPage() {
-  const monitors = [
-    { name: 'API Server', status: 'up', uptime: 99.98, lastIncident: '25 days ago' },
-    { name: 'Web App', status: 'up', uptime: 99.95, lastIncident: '18 days ago' },
-    { name: 'Database', status: 'up', uptime: 99.92, lastIncident: '12 days ago' },
-    { name: 'CDN', status: 'up', uptime: 100, lastIncident: 'Never' },
-  ];
+  const [monitors, setMonitors] = useState<Monitor[]>([]);
+  const [incidents, setIncidents] = useState<Incident[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const recentIncidents = [
-    {
-      title: 'Database Performance Degradation',
-      status: 'resolved',
-      startTime: '2024-02-28 14:30',
-      endTime: '2024-02-28 14:55',
-      duration: '25 minutes',
-      affectedServices: ['Database'],
-    },
-    {
-      title: 'API Server Restart',
-      status: 'resolved',
-      startTime: '2024-02-27 08:15',
-      endTime: '2024-02-27 08:18',
-      duration: '3 minutes',
-      affectedServices: ['API Server'],
-    },
-  ];
+  useEffect(() => {
+    Promise.all([
+      fetch('/api/monitors').then((r) => r.json()),
+      fetch('/api/incidents').then((r) => r.json()),
+    ])
+      .then(([m, i]) => {
+        setMonitors(m);
+        setIncidents(i);
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, []);
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'up':
-        return 'text-green-600';
-      case 'down':
-        return 'text-red-600';
-      case 'degraded':
-        return 'text-yellow-600';
-      default:
-        return 'text-gray-600';
-    }
-  };
+  const allUp = monitors.length > 0 && monitors.every((m) => m.status === 'UP');
+  const recentIncidents = incidents.slice(0, 5);
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'up':
-        return <CheckCircle2 className={`w-5 h-5 ${getStatusColor(status)}`} />;
-      case 'down':
-        return <XCircle className={`w-5 h-5 ${getStatusColor(status)}`} />;
-      default:
-        return <AlertCircle className={`w-5 h-5 ${getStatusColor(status)}`} />;
-    }
-  };
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -73,14 +68,14 @@ export default function StatusPage() {
         {/* Overall Status */}
         <Card className="p-6 mb-8">
           <div className="flex items-center gap-4">
-            <div className="w-4 h-4 rounded-full bg-green-600" />
+            <div className={`w-4 h-4 rounded-full ${allUp ? 'bg-green-600' : 'bg-red-600'}`} />
             <div className="flex-1">
-              <h2 className="text-2xl font-bold">All Systems Operational</h2>
-              <p className="text-muted-foreground">As of 2 minutes ago</p>
-            </div>
-            <div className="text-right">
-              <p className="font-semibold text-green-600">99.96%</p>
-              <p className="text-xs text-muted-foreground">Uptime (30d)</p>
+              <h2 className="text-2xl font-bold">
+                {allUp ? 'All Systems Operational' : 'Some Systems Affected'}
+              </h2>
+              <p className="text-muted-foreground">
+                {monitors.length} service{monitors.length !== 1 ? 's' : ''} monitored
+              </p>
             </div>
           </div>
         </Card>
@@ -88,78 +83,76 @@ export default function StatusPage() {
         {/* Monitors */}
         <div className="mb-8">
           <h3 className="font-semibold text-lg mb-4">Service Status</h3>
-          <div className="space-y-3">
-            {monitors.map((monitor) => (
-              <Card key={monitor.name} className="p-4 flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  {getStatusIcon(monitor.status)}
-                  <div>
-                    <p className="font-medium">{monitor.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {monitor.status === 'up' ? 'Operational' : 'Offline'} • {monitor.uptime}% uptime
-                    </p>
-                  </div>
-                </div>
-                <p className="text-xs text-muted-foreground">Last incident: {monitor.lastIncident}</p>
-              </Card>
-            ))}
-          </div>
+          {monitors.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No services configured.</p>
+          ) : (
+            <div className="space-y-3">
+              {monitors.map((monitor) => {
+                const label = monitor.status.toLowerCase();
+                return (
+                  <Card key={monitor.id} className="p-4 flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      {label === 'up' ? (
+                        <CheckCircle2 className="w-5 h-5 text-green-600" />
+                      ) : label === 'down' ? (
+                        <XCircle className="w-5 h-5 text-red-600" />
+                      ) : (
+                        <AlertCircle className="w-5 h-5 text-yellow-600" />
+                      )}
+                      <div>
+                        <p className="font-medium">{monitor.name}</p>
+                        <p className="text-xs text-muted-foreground capitalize">
+                          {label === 'up' ? 'Operational' : label}
+                        </p>
+                      </div>
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
         </div>
-
-        {/* 90-Day Stats */}
-        <Card className="p-6 mb-8">
-          <h3 className="font-semibold mb-6 flex items-center gap-2">
-            <TrendingUp className="w-5 h-5" />
-            90-Day Uptime Summary
-          </h3>
-          <div className="grid md:grid-cols-4 gap-4">
-            {[
-              { name: 'API Server', uptime: 99.98 },
-              { name: 'Web App', uptime: 99.95 },
-              { name: 'Database', uptime: 99.92 },
-              { name: 'CDN', uptime: 100 },
-            ].map((item) => (
-              <div key={item.name} className="p-3 bg-muted rounded-lg">
-                <p className="text-sm font-medium mb-1">{item.name}</p>
-                <p className="text-2xl font-bold">{item.uptime}%</p>
-              </div>
-            ))}
-          </div>
-        </Card>
 
         {/* Incidents */}
         <div>
           <h3 className="font-semibold text-lg mb-4">Recent Incidents</h3>
-          <div className="space-y-4">
-            {recentIncidents.map((incident, i) => (
-              <Card key={i} className="p-4">
-                <div className="flex items-start gap-4">
-                  <CheckCircle2 className="w-5 h-5 text-green-600 mt-0.5" />
-                  <div className="flex-1">
-                    <h4 className="font-medium mb-1">{incident.title}</h4>
-                    <p className="text-sm text-muted-foreground mb-2">{incident.duration} of downtime</p>
-                    <div className="flex flex-wrap gap-2">
-                      {incident.affectedServices.map((service) => (
-                        <span key={service} className="text-xs px-2 py-1 bg-muted rounded">
-                          {service}
-                        </span>
-                      ))}
+          {recentIncidents.length === 0 ? (
+            <Card className="p-6 text-center">
+              <CheckCircle2 className="w-10 h-10 text-green-600 mx-auto mb-2 opacity-50" />
+              <p className="text-sm text-muted-foreground">No recent incidents</p>
+            </Card>
+          ) : (
+            <div className="space-y-4">
+              {recentIncidents.map((incident) => (
+                <Card key={incident.id} className="p-4">
+                  <div className="flex items-start gap-4">
+                    {incident.status === 'RESOLVED' ? (
+                      <CheckCircle2 className="w-5 h-5 text-green-600 mt-0.5" />
+                    ) : (
+                      <AlertCircle className="w-5 h-5 text-red-600 mt-0.5" />
+                    )}
+                    <div className="flex-1">
+                      <h4 className="font-medium mb-1">
+                        {incident.summary ?? `Incident on ${incident.monitor.name}`}
+                      </h4>
+                      <p className="text-sm text-muted-foreground capitalize">
+                        {incident.status.toLowerCase()} &middot; {incident.monitor.name}
+                      </p>
                     </div>
+                    <p className="text-xs text-muted-foreground whitespace-nowrap">
+                      {new Date(incident.startedAt).toLocaleDateString()}
+                    </p>
                   </div>
-                  <p className="text-xs text-muted-foreground whitespace-nowrap">
-                    {incident.startTime}
-                  </p>
-                </div>
-              </Card>
-            ))}
-          </div>
+                </Card>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Footer */}
         <div className="mt-12 pt-8 border-t border-border">
           <p className="text-xs text-muted-foreground text-center">
-            Check for updates on <a href="#" className="text-primary hover:underline">Twitter</a> • 
-            <a href="#" className="text-primary hover:underline"> Subscribe to updates</a>
+            Powered by Watchtower
           </p>
         </div>
       </div>

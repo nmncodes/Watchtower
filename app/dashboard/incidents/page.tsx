@@ -1,44 +1,54 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, AlertTriangle, Clock, CheckCircle2, X } from 'lucide-react';
+import { Plus, AlertTriangle, Clock, CheckCircle2, Loader2 } from 'lucide-react';
+import { formatDistanceToNow, format } from 'date-fns';
+
+interface TimelineEntry {
+  id: string;
+  status: string;
+  message: string;
+  createdAt: string;
+}
+
+interface Incident {
+  id: string;
+  status: string;
+  summary: string | null;
+  startedAt: string;
+  resolvedAt: string | null;
+  monitor: { id: string; name: string };
+  timeline: TimelineEntry[];
+}
 
 export default function IncidentsPage() {
-  const [incidents, setIncidents] = useState([
-    {
-      id: 1,
-      title: 'Database Performance Degradation',
-      status: 'resolved',
-      severity: 'medium',
-      affectedServices: ['Database'],
-      startTime: '2024-02-28 14:30',
-      endTime: '2024-02-28 14:55',
-      duration: '25 minutes',
-      description: 'Database was experiencing slow queries, affecting API response times.',
-      updates: [
-        { time: '14:55', message: 'Issue resolved. Database performance back to normal.' },
-        { time: '14:40', message: 'Root cause identified. Running optimization queries.' },
-        { time: '14:30', message: 'Alert triggered for high database latency.' },
-      ],
-    },
-    {
-      id: 2,
-      title: 'API Server Restart',
-      status: 'resolved',
-      severity: 'low',
-      affectedServices: ['API Server'],
-      startTime: '2024-02-27 08:15',
-      endTime: '2024-02-27 08:18',
-      duration: '3 minutes',
-      description: 'Scheduled maintenance restart of API server.',
-      updates: [
-        { time: '08:18', message: 'Server is back online.' },
-        { time: '08:15', message: 'Starting scheduled maintenance.' },
-      ],
-    },
-  ]);
+  const [incidents, setIncidents] = useState<Incident[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/incidents')
+      .then((res) => res.json())
+      .then((data) => setIncidents(data))
+      .catch((err) => console.error('Failed to load incidents', err))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const severityFromStatus = (status: string) => {
+    switch (status) {
+      case 'INVESTIGATING':
+        return 'critical';
+      case 'IDENTIFIED':
+        return 'high';
+      case 'MONITORING':
+        return 'medium';
+      case 'RESOLVED':
+        return 'low';
+      default:
+        return 'low';
+    }
+  };
 
   const getSeverityColor = (severity: string) => {
     switch (severity) {
@@ -55,6 +65,14 @@ export default function IncidentsPage() {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
   return (
     <div className="p-4 sm:p-6 lg:p-8">
       <div className="flex items-center justify-between mb-8">
@@ -68,77 +86,93 @@ export default function IncidentsPage() {
         </Button>
       </div>
 
-      {/* Incidents List */}
-      <div className="space-y-6">
-        {incidents.map((incident) => (
-          <Card key={incident.id} className="p-6">
-            {/* Header */}
-            <div className="flex items-start justify-between mb-4">
-              <div className="flex-1">
-                <div className="flex items-center gap-3 mb-2">
-                  <AlertTriangle className="w-5 h-5" />
-                  <h2 className="text-xl font-semibold">{incident.title}</h2>
-                  <span
-                    className={`px-2 py-1 rounded text-xs font-semibold ${getSeverityColor(incident.severity)}`}
-                  >
-                    {incident.severity.toUpperCase()}
-                  </span>
-                </div>
-                <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                  <span className="flex items-center gap-1">
-                    <Clock className="w-4 h-4" />
-                    {incident.startTime}
-                  </span>
-                  <span>→</span>
-                  <span>{incident.endTime}</span>
-                  <span className="px-2 py-1 bg-muted rounded">{incident.duration}</span>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                {incident.status === 'resolved' && (
-                  <div className="flex items-center gap-1 text-green-600">
-                    <CheckCircle2 className="w-5 h-5" />
-                    <span className="text-sm font-medium">Resolved</span>
-                  </div>
-                )}
-              </div>
-            </div>
+      {incidents.length === 0 ? (
+        <Card className="p-12 text-center">
+          <CheckCircle2 className="w-12 h-12 text-green-600 mx-auto mb-4 opacity-50" />
+          <p className="text-muted-foreground">No incidents recorded yet.</p>
+        </Card>
+      ) : (
+        <div className="space-y-6">
+          {incidents.map((incident) => {
+            const severity = severityFromStatus(incident.status);
+            const isResolved = incident.status === 'RESOLVED';
+            const duration =
+              incident.resolvedAt
+                ? formatDistanceToNow(new Date(incident.startedAt))
+                : 'Ongoing';
 
-            {/* Affected Services */}
-            <div className="mb-4">
-              <p className="text-sm font-medium mb-2">Affected Services</p>
-              <div className="flex gap-2">
-                {incident.affectedServices.map((service) => (
-                  <span key={service} className="px-3 py-1 bg-destructive/10 text-destructive rounded-full text-xs">
-                    {service}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            {/* Description */}
-            <div className="mb-4 p-4 bg-muted/50 rounded-lg">
-              <p className="text-sm">{incident.description}</p>
-            </div>
-
-            {/* Timeline */}
-            <div className="border-t border-border pt-4">
-              <p className="text-sm font-medium mb-4">Incident Timeline</p>
-              <div className="space-y-3">
-                {incident.updates.map((update, i) => (
-                  <div key={i} className="flex gap-4">
-                    <div className="text-xs text-muted-foreground whitespace-nowrap pt-1">{update.time}</div>
-                    <div className="flex-1">
-                      <div className="w-2 h-2 rounded-full bg-primary mb-1" />
-                      <p className="text-sm">{update.message}</p>
+            return (
+              <Card key={incident.id} className="p-6">
+                {/* Header */}
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-2">
+                      <AlertTriangle className="w-5 h-5" />
+                      <h2 className="text-xl font-semibold">
+                        {incident.summary ?? `Incident on ${incident.monitor.name}`}
+                      </h2>
+                      <span
+                        className={`px-2 py-1 rounded text-xs font-semibold ${getSeverityColor(severity)}`}
+                      >
+                        {incident.status}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <Clock className="w-4 h-4" />
+                        {format(new Date(incident.startedAt), 'yyyy-MM-dd HH:mm')}
+                      </span>
+                      {incident.resolvedAt && (
+                        <>
+                          <span>→</span>
+                          <span>{format(new Date(incident.resolvedAt), 'yyyy-MM-dd HH:mm')}</span>
+                        </>
+                      )}
+                      <span className="px-2 py-1 bg-muted rounded">{duration}</span>
                     </div>
                   </div>
-                ))}
-              </div>
-            </div>
-          </Card>
-        ))}
-      </div>
+                  <div className="flex items-center gap-2">
+                    {isResolved && (
+                      <div className="flex items-center gap-1 text-green-600">
+                        <CheckCircle2 className="w-5 h-5" />
+                        <span className="text-sm font-medium">Resolved</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Affected Services */}
+                <div className="mb-4">
+                  <p className="text-sm font-medium mb-2">Affected Service</p>
+                  <span className="px-3 py-1 bg-destructive/10 text-destructive rounded-full text-xs">
+                    {incident.monitor.name}
+                  </span>
+                </div>
+
+                {/* Timeline */}
+                {incident.timeline.length > 0 && (
+                  <div className="border-t border-border pt-4">
+                    <p className="text-sm font-medium mb-4">Incident Timeline</p>
+                    <div className="space-y-3">
+                      {incident.timeline.map((entry) => (
+                        <div key={entry.id} className="flex gap-4">
+                          <div className="text-xs text-muted-foreground whitespace-nowrap pt-1">
+                            {format(new Date(entry.createdAt), 'HH:mm')}
+                          </div>
+                          <div className="flex-1">
+                            <div className="w-2 h-2 rounded-full bg-primary mb-1" />
+                            <p className="text-sm">{entry.message}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </Card>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
