@@ -53,6 +53,7 @@ coverage/
 Thumbs.db
 ehthumbs.db
 Desktop.ini
+watchface.json
 
 # Misc
 *.pem
