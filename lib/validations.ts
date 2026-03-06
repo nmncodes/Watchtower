@@ -9,7 +9,11 @@ export const createMonitorSchema = z.object({
   region: z.string().min(1).default("us-east-1"),
 });
 
-export const updateMonitorSchema = createMonitorSchema.partial();
+export const monitorStatusEnum = z.enum(["UP", "DOWN", "DEGRADED", "PAUSED"]);
+
+export const updateMonitorSchema = createMonitorSchema.partial().extend({
+  status: monitorStatusEnum.optional(),
+});
 
 export type CreateMonitorInput = z.infer<typeof createMonitorSchema>;
 export type UpdateMonitorInput = z.infer<typeof updateMonitorSchema>;

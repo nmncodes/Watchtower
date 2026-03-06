@@ -110,28 +110,15 @@ export default function Dashboard() {
           {/* Response Time Chart */}
           <Card className="p-6">
             <h2 className="font-semibold mb-4">Response Time (24h)</h2>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={responseTimeData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis dataKey="time" stroke="var(--muted-foreground)" />
-                <YAxis stroke="var(--muted-foreground)" />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'var(--card)',
-                    border: '1px solid var(--border)',
-                    borderRadius: '0.5rem',
-                  }}
-                  labelStyle={{ color: 'var(--foreground)' }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="value"
-                  stroke="var(--primary)"
-                  strokeWidth={2}
-                  dot={false}
-                />
-              </LineChart>
-            </ResponsiveContainer>
+            {monitors.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-12">
+                Add a monitor and run a check to see response times
+              </p>
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-12">
+                View individual monitor pages for response time charts
+              </p>
+            )}
           </Card>
 
           {/* Monitors List */}

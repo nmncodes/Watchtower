@@ -38,7 +38,7 @@ export async function POST(request: Request) {
 
     const userId = await getDefaultUserId();
     const monitor = await prisma.monitor.create({
-      data: { ...parsed.data, userId },
+      data: { ...parsed.data, userId, status: "UP" },
     });
     return NextResponse.json(monitor, { status: 201 });
   } catch (error) {

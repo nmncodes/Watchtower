@@ -4,10 +4,11 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Calendar, TrendingUp, AlertCircle, Loader2 } from 'lucide-react';
+import { ArrowLeft, Calendar, TrendingUp, AlertCircle, Loader2, Play, Pause, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { formatDistanceToNow, format } from 'date-fns';
+import { toast } from 'sonner';
 
 interface Check {
   id: string;
@@ -52,8 +53,9 @@ export default function MonitorDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [timeRange, setTimeRange] = useState<'24h' | '7d' | '30d'>('24h');
+  const [checking, setChecking] = useState(false);
 
-  useEffect(() => {
+  const fetchMonitor = () => {
     fetch(`/api/monitors/${params.id}`)
       .then((res) => {
         if (!res.ok) throw new Error('Monitor not found');
@@ -62,7 +64,45 @@ export default function MonitorDetailPage() {
       .then((data) => setMonitor(data))
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchMonitor();
   }, [params.id]);
+
+  const handleCheckNow = async () => {
+    setChecking(true);
+    try {
+      const res = await fetch(`/api/monitors/${params.id}/check`, { method: 'POST' });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Check failed');
+      }
+      toast.success('Check completed');
+      fetchMonitor(); // refresh data
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  const handleTogglePause = async () => {
+    if (!monitor) return;
+    const newStatus = monitor.status === 'PAUSED' ? 'UP' : 'PAUSED';
+    try {
+      const res = await fetch(`/api/monitors/${params.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (!res.ok) throw new Error('Failed to update status');
+      toast.success(newStatus === 'PAUSED' ? 'Monitor paused' : 'Monitor resumed');
+      fetchMonitor();
+    } catch (err: any) {
+      toast.error(err.message);
+    }
+  };
 
   if (loading) {
     return (
@@ -105,7 +145,31 @@ export default function MonitorDetailPage() {
           </Button>
         </Link>
         <h1 className="text-3xl font-bold mb-2">{monitor.name}</h1>
-        <p className="text-muted-foreground">{monitor.url}</p>
+        <div className="flex items-center gap-3">
+          <p className="text-muted-foreground">{monitor.url}</p>
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-2"
+            onClick={handleCheckNow}
+            disabled={checking || monitor.status === 'PAUSED'}
+          >
+            {checking ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+            Check Now
+          </Button>
+          <Button
+            size="sm"
+            variant={monitor.status === 'PAUSED' ? 'default' : 'outline'}
+            className="gap-2"
+            onClick={handleTogglePause}
+          >
+            {monitor.status === 'PAUSED' ? (
+              <><Play className="w-4 h-4" /> Resume</>
+            ) : (
+              <><Pause className="w-4 h-4" /> Pause</>
+            )}
+          </Button>
+        </div>
       </div>
 
       {/* Status Overview */}
