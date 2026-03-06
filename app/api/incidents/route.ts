@@ -32,7 +32,7 @@ export async function POST(req: Request) {
       },
       include: { monitor: { select: { id: true, name: true } } },
     });
-
+    // Error code 201
     return NextResponse.json(incident, { status: 201 });
   } catch (error) {
     console.error(error);
