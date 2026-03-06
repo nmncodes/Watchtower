@@ -24,10 +24,11 @@ model User {
   role          Role      @default(USER)
   createdAt     DateTime  @default(now())
 
-  accounts    Account[]
-  sessions    Session[]
-  monitors    Monitor[]
-  statusPages StatusPage[]
+  accounts             Account[]
+  sessions             Session[]
+  monitors             Monitor[]
+  statusPages          StatusPage[]
+  notificationChannels NotificationChannel[]
 }
 
 model Account {
@@ -161,6 +162,27 @@ model StatusPage {
   monitorIds  String[] @default([])
   isPublic    Boolean  @default(true)
   createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ── Notifications ──────────────────────────────────────────
+
+enum NotificationChannelType {
+  EMAIL
+  WEBHOOK
+}
+
+model NotificationChannel {
+  id        String                  @id @default(cuid())
+  userId    String
+  type      NotificationChannelType
+  name      String
+  target    String // email address or webhook URL
+  enabled   Boolean                 @default(true)
+  createdAt DateTime                @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

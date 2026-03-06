@@ -2,11 +2,13 @@
 
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Mail, Lock, Trash2, Globe, Plus, Pencil, ExternalLink, Loader2 } from 'lucide-react';
+import { Mail, Lock, Trash2, Globe, Plus, Pencil, ExternalLink, Loader2, Bell, Webhook } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
 import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { StatusPageDialog } from '@/components/status-page-dialog';
+import { NotificationChannelDialog } from '@/components/notification-channel-dialog';
 import { DeleteConfirmDialog } from '@/components/delete-confirm-dialog';
 import { toast } from 'sonner';
 import Link from 'next/link';
@@ -26,10 +28,20 @@ interface StatusPageItem {
   createdAt: string;
 }
 
+interface NotificationChannel {
+  id: string;
+  name: string;
+  type: 'EMAIL' | 'WEBHOOK';
+  target: string;
+  enabled: boolean;
+  createdAt: string;
+}
+
 export default function SettingsPage() {
   const { data: session } = useSession();
   const [monitors, setMonitors] = useState<Monitor[]>([]);
   const [statusPages, setStatusPages] = useState<StatusPageItem[]>([]);
+  const [notifChannels, setNotifChannels] = useState<NotificationChannel[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Dialog state
@@ -38,14 +50,22 @@ export default function SettingsPage() {
   const [deleteTarget, setDeleteTarget] = useState<StatusPageItem | null>(null);
   const [deleting, setDeleting] = useState(false);
 
+  // Notification channel dialog state
+  const [notifDialogOpen, setNotifDialogOpen] = useState(false);
+  const [editingChannel, setEditingChannel] = useState<NotificationChannel | undefined>();
+  const [deleteNotifTarget, setDeleteNotifTarget] = useState<NotificationChannel | null>(null);
+  const [deletingNotif, setDeletingNotif] = useState(false);
+
   const fetchData = useCallback(async () => {
     try {
-      const [m, sp] = await Promise.all([
+      const [m, sp, nc] = await Promise.all([
         fetch('/api/monitors').then((r) => r.json()),
         fetch('/api/status-pages').then((r) => r.json()),
+        fetch('/api/notification-channels').then((r) => r.json()),
       ]);
       setMonitors(Array.isArray(m) ? m : []);
       setStatusPages(Array.isArray(sp) ? sp : []);
+      setNotifChannels(Array.isArray(nc) ? nc : []);
     } catch {
       // silent
     } finally {
@@ -82,6 +102,38 @@ export default function SettingsPage() {
     } finally {
       setDeleting(false);
       setDeleteTarget(null);
+    }
+  };
+
+  const handleToggleChannel = async (channel: NotificationChannel) => {
+    try {
+      const res = await fetch(`/api/notification-channels/${channel.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled: !channel.enabled }),
+      });
+      if (!res.ok) throw new Error('Failed to update');
+      fetchData();
+    } catch {
+      toast.error('Failed to toggle channel');
+    }
+  };
+
+  const handleDeleteChannel = async () => {
+    if (!deleteNotifTarget) return;
+    setDeletingNotif(true);
+    try {
+      const res = await fetch(`/api/notification-channels/${deleteNotifTarget.id}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) throw new Error('Failed to delete');
+      toast.success('Channel deleted');
+      fetchData();
+    } catch {
+      toast.error('Failed to delete channel');
+    } finally {
+      setDeletingNotif(false);
+      setDeleteNotifTarget(null);
     }
   };
 
@@ -167,6 +219,82 @@ export default function SettingsPage() {
           )}
         </Card>
 
+        {/* Notification Channels */}
+        <Card className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-semibold text-lg flex items-center gap-2">
+              <Bell className="w-5 h-5" />
+              Notification Channels
+            </h2>
+            <Button
+              size="sm"
+              onClick={() => {
+                setEditingChannel(undefined);
+                setNotifDialogOpen(true);
+              }}
+            >
+              <Plus className="w-4 h-4 mr-1" /> Add
+            </Button>
+          </div>
+
+          {loading ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : notifChannels.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-6">
+              No notification channels configured. Add one to receive alerts when monitors go down or recover.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {notifChannels.map((ch) => (
+                <div
+                  key={ch.id}
+                  className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      {ch.type === 'EMAIL' ? (
+                        <Mail className="w-4 h-4 text-muted-foreground" />
+                      ) : (
+                        <Webhook className="w-4 h-4 text-muted-foreground" />
+                      )}
+                      <p className="font-medium truncate">{ch.name}</p>
+                    </div>
+                    <p className="text-xs text-muted-foreground truncate ml-6">
+                      {ch.target}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 ml-2">
+                    <Switch
+                      checked={ch.enabled}
+                      onCheckedChange={() => handleToggleChannel(ch)}
+                    />
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setEditingChannel(ch);
+                        setNotifDialogOpen(true);
+                      }}
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => setDeleteNotifTarget(ch)}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+
         {/* Security */}
         <Card className="p-6">
           <h2 className="font-semibold text-lg mb-4 flex items-center gap-2">
@@ -206,6 +334,14 @@ export default function SettingsPage() {
         initial={editingPage}
       />
 
+      {/* Notification Channel Dialog */}
+      <NotificationChannelDialog
+        open={notifDialogOpen}
+        onOpenChange={setNotifDialogOpen}
+        onSuccess={fetchData}
+        initial={editingChannel}
+      />
+
       {/* Delete Confirmation */}
       <DeleteConfirmDialog
         open={!!deleteTarget}
@@ -214,6 +350,16 @@ export default function SettingsPage() {
         title="Delete Status Page"
         description={`Are you sure you want to delete "${deleteTarget?.title}"? This cannot be undone.`}
         loading={deleting}
+      />
+
+      {/* Delete Channel Confirmation */}
+      <DeleteConfirmDialog
+        open={!!deleteNotifTarget}
+        onOpenChange={(open) => !open && setDeleteNotifTarget(null)}
+        onConfirm={handleDeleteChannel}
+        title="Delete Channel"
+        description={`Are you sure you want to delete "${deleteNotifTarget?.name}"? You will stop receiving notifications through this channel.`}
+        loading={deletingNotif}
       />
     </div>
   );

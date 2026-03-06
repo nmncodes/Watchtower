@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import type { CheckStatus, MonitorStatus } from "@/lib/generated/prisma/client";
+import { sendNotifications } from "@/lib/notifications";
 
 export interface CheckResult {
   status: CheckStatus;
@@ -76,7 +77,11 @@ export async function checkMonitor(monitorId: string) {
     data: { status: newStatus, lastCheckAt: new Date() },
   });
 
-  // 3. Handle incidents
+  // 3. Determine if status actually changed (for notifications)
+  const previousStatus = monitor.status;
+  const statusChanged = previousStatus !== newStatus;
+
+  // 4. Handle incidents
   if (result.status === "DOWN") {
     // Check if there's already an open incident for this monitor
     const openIncident = await prisma.incident.findFirst({
@@ -102,6 +107,17 @@ export async function checkMonitor(monitorId: string) {
         },
       });
     }
+
+    // Send DOWN notification only on status change
+    if (statusChanged) {
+      sendNotifications(monitor.userId, {
+        monitorName: monitor.name,
+        monitorUrl: monitor.url,
+        event: "DOWN",
+        httpCode: result.code,
+        responseTime: result.responseTime,
+      }).catch((err) => console.error("Notification error:", err));
+    }
   } else if (result.status === "UP") {
     // Auto-resolve any open incidents for this monitor
     const openIncidents = await prisma.incident.findMany({
@@ -125,6 +141,17 @@ export async function checkMonitor(monitorId: string) {
           },
         },
       });
+    }
+
+    // Send RECOVERY notification only on status change from DOWN
+    if (statusChanged && previousStatus === "DOWN") {
+      sendNotifications(monitor.userId, {
+        monitorName: monitor.name,
+        monitorUrl: monitor.url,
+        event: "RECOVERY",
+        httpCode: result.code,
+        responseTime: result.responseTime,
+      }).catch((err) => console.error("Notification error:", err));
     }
   }
 

@@ -60,3 +60,19 @@ export const updateStatusPageSchema = createStatusPageSchema.partial();
 
 export type CreateStatusPageInput = z.infer<typeof createStatusPageSchema>;
 export type UpdateStatusPageInput = z.infer<typeof updateStatusPageSchema>;
+
+// ── Notification Channel schemas ───────────────────────────
+
+export const notificationChannelTypeEnum = z.enum(["EMAIL", "WEBHOOK"]);
+
+export const createNotificationChannelSchema = z.object({
+  name: z.string().min(1, "Name is required").max(100),
+  type: notificationChannelTypeEnum,
+  target: z.string().min(1, "Target is required").max(500),
+  enabled: z.boolean().default(true),
+});
+
+export const updateNotificationChannelSchema = createNotificationChannelSchema.partial();
+
+export type CreateNotificationChannelInput = z.infer<typeof createNotificationChannelSchema>;
+export type UpdateNotificationChannelInput = z.infer<typeof updateNotificationChannelSchema>;
