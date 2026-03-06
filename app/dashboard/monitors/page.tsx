@@ -103,7 +103,7 @@ export default function MonitorsPage() {
                   <div className="md:col-span-2">
                     <div className="flex items-start gap-3">
                       <div
-                        className={`w-3 h-3 rounded-full mt-1.5 flex-shrink-0 ${
+                        className={`w-3 h-3 rounded-full mt-1.5 shrink-0 ${
                           label === 'up' ? 'bg-green-600' : label === 'down' ? 'bg-red-600' : label === 'degraded' ? 'bg-yellow-600' : 'bg-gray-400'
                         }`}
                       />
