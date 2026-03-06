@@ -33,7 +33,9 @@ export default function LoginPage() {
 
       if (result?.error) {
         setError('Invalid email or password');
-      } else {
+      } 
+      else {
+        // successful login , route to dashboard
         router.push('/dashboard');
         router.refresh();
       }
@@ -52,7 +54,7 @@ export default function LoginPage() {
             <span className="text-primary-foreground font-bold text-2xl">W</span>
           </div>
           <h1 className="text-2xl font-bold">Sign in to Watchtower</h1>
-          <p className="text-muted-foreground mt-2">Monitor your services with confidence</p>
+          <p className="text-muted-foreground mt-2">Monitor and manage</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -62,7 +64,7 @@ export default function LoginPage() {
               id="email"
               name="email"
               type="email"
-              placeholder="you@example.com"
+              placeholder="something-something@example.com"
               required
               className="mt-1"
             />
