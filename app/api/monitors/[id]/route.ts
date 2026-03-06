@@ -1,14 +1,16 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { updateMonitorSchema } from "@/lib/validations";
 
 // GET /api/monitors/:id
 export async function GET(
   _req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   try {
     const monitor = await prisma.monitor.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         checks: { orderBy: { createdAt: "desc" }, take: 50 },
         incidents: { orderBy: { startedAt: "desc" }, take: 10, include: { timeline: true } },
@@ -29,14 +31,23 @@ export async function GET(
 // PATCH /api/monitors/:id
 export async function PATCH(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   try {
     const body = await req.json();
+    const parsed = updateMonitorSchema.safeParse(body);
+
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Validation failed", details: parsed.error.flatten().fieldErrors },
+        { status: 400 }
+      );
+    }
 
     const monitor = await prisma.monitor.update({
-      where: { id: params.id },
-      data: body as any,
+      where: { id },
+      data: parsed.data,
     });
 
     return NextResponse.json(monitor);
@@ -51,21 +62,18 @@ export async function PATCH(
 
 // DELETE /api/monitors/:id
 export async function DELETE(
-  _req: Request , 
-  { params} : {params: {id : string}} 
-
-) 
-{
+  _req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
   try {
-    await prisma.monitor.delete({where : {id : params.id}});
-    return new NextResponse(null, {status : 204});
-  }
-  catch(error : any) {
+    await prisma.monitor.delete({ where: { id } });
+    return new NextResponse(null, { status: 204 });
+  } catch (error: any) {
     console.error(error);
-    if(error?.code === "P2025") {
-      
-      return NextResponse.json({error : "Monitor not found"}, {status : 404});
+    if (error?.code === "P2025") {
+      return NextResponse.json({ error: "Monitor not found" }, { status: 404 });
     }
-    return NextResponse.json({error : "Failed to delete monitor"}, {status : 500});
+    return NextResponse.json({ error: "Failed to delete monitor" }, { status: 500 });
   }
 }

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { createIncidentSchema } from "@/lib/validations";
 
 // GET /api/incidents — list all incidents
 export async function GET() {
@@ -23,13 +24,17 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
+    const parsed = createIncidentSchema.safeParse(body);
+
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Validation failed", details: parsed.error.flatten().fieldErrors },
+        { status: 400 }
+      );
+    }
 
     const incident = await prisma.incident.create({
-      data: {
-        monitorId: body.monitorId,
-        summary: body.summary ?? null,
-        status: body.status ?? "INVESTIGATING",
-      },
+      data: parsed.data,
       include: { monitor: { select: { id: true, name: true } } },
     });
     // Error code 201

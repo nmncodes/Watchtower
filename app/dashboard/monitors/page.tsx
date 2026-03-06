@@ -3,20 +3,13 @@
 import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, Edit2, Trash2, CheckCircle2, XCircle, Eye, Loader2 } from 'lucide-react';
+import { Edit2, Trash2, Eye, Loader2 } from 'lucide-react';
 import Link from 'next/link';
-import {
-  LineChart,
-  Line,
-  ResponsiveContainer,
-  ComposedChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-} from 'recharts';
 import { formatDistanceToNow } from 'date-fns';
+import { toast } from 'sonner';
+import { CreateMonitorDialog } from '@/components/create-monitor-dialog';
+import { EditMonitorDialog } from '@/components/edit-monitor-dialog';
+import { DeleteConfirmDialog } from '@/components/delete-confirm-dialog';
 
 interface Monitor {
   id: string;
@@ -33,6 +26,13 @@ export default function MonitorsPage() {
   const [monitors, setMonitors] = useState<Monitor[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Edit dialog state
+  const [editMonitor, setEditMonitor] = useState<Monitor | null>(null);
+
+  // Delete dialog state
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
   useEffect(() => {
     fetch('/api/monitors')
       .then((res) => res.json())
@@ -41,13 +41,22 @@ export default function MonitorsPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const deleteMonitor = async (id: string) => {
-    if (!confirm('Delete this monitor?')) return;
+  const handleDelete = async () => {
+    if (!deleteId) return;
+    setDeleteLoading(true);
     try {
-      const res = await fetch(`/api/monitors/${id}`, { method: 'DELETE' });
-      if (res.ok) setMonitors((prev) => prev.filter((m) => m.id !== id));
-    } catch (err) {
-      console.error('Delete failed', err);
+      const res = await fetch(`/api/monitors/${deleteId}`, { method: 'DELETE' });
+      if (res.ok) {
+        setMonitors((prev) => prev.filter((m) => m.id !== deleteId));
+        toast.success('Monitor deleted');
+      } else {
+        toast.error('Failed to delete monitor');
+      }
+    } catch {
+      toast.error('Failed to delete monitor');
+    } finally {
+      setDeleteLoading(false);
+      setDeleteId(null);
     }
   };
 
@@ -71,18 +80,17 @@ export default function MonitorsPage() {
           <h1 className="text-3xl font-bold mb-2">Monitors</h1>
           <p className="text-muted-foreground">Manage and view all your monitored services</p>
         </div>
-        <Button className="gap-2">
-          <Plus className="w-4 h-4" />
-          <span className="hidden sm:inline">Add Monitor</span>
-        </Button>
+        <CreateMonitorDialog
+          onCreated={(m) => setMonitors((prev) => [m, ...prev])}
+        />
       </div>
 
       {monitors.length === 0 ? (
         <Card className="p-12 text-center">
           <p className="text-muted-foreground mb-4">No monitors yet. Add one to get started.</p>
-          <Button className="gap-2">
-            <Plus className="w-4 h-4" /> Add Monitor
-          </Button>
+          <CreateMonitorDialog
+            onCreated={(m) => setMonitors((prev) => [m, ...prev])}
+          />
         </Card>
       ) : (
         <div className="space-y-4">
@@ -125,14 +133,19 @@ export default function MonitorsPage() {
                         <Eye className="w-4 h-4" />
                       </Button>
                     </Link>
-                    <Button variant="ghost" size="sm" className="gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="gap-2"
+                      onClick={() => setEditMonitor(monitor)}
+                    >
                       <Edit2 className="w-4 h-4" />
                     </Button>
                     <Button
                       variant="ghost"
                       size="sm"
                       className="gap-2 text-destructive"
-                      onClick={() => deleteMonitor(monitor.id)}
+                      onClick={() => setDeleteId(monitor.id)}
                     >
                       <Trash2 className="w-4 h-4" />
                     </Button>
@@ -147,6 +160,28 @@ export default function MonitorsPage() {
           })}
         </div>
       )}
+
+      {/* Edit Monitor Dialog */}
+      {editMonitor && (
+        <EditMonitorDialog
+          monitor={editMonitor}
+          open={!!editMonitor}
+          onOpenChange={(open) => { if (!open) setEditMonitor(null); }}
+          onUpdated={(updated) =>
+            setMonitors((prev) => prev.map((m) => (m.id === updated.id ? { ...m, ...updated } : m)))
+          }
+        />
+      )}
+
+      {/* Delete Confirm Dialog */}
+      <DeleteConfirmDialog
+        open={!!deleteId}
+        onOpenChange={(open) => { if (!open) setDeleteId(null); }}
+        title="Delete Monitor"
+        description="This will permanently delete this monitor and all its checks and incidents. This action cannot be undone."
+        onConfirm={handleDelete}
+        loading={deleteLoading}
+      />
     </div>
   );
 }

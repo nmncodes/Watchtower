@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Plus, AlertTriangle, Clock, CheckCircle2, Loader2 } from 'lucide-react';
+import { AlertTriangle, Clock, CheckCircle2, Loader2 } from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
+import { CreateIncidentDialog } from '@/components/create-incident-dialog';
 
 interface TimelineEntry {
   id: string;
@@ -23,15 +23,26 @@ interface Incident {
   timeline: TimelineEntry[];
 }
 
+interface MonitorOption {
+  id: string;
+  name: string;
+}
+
 export default function IncidentsPage() {
   const [incidents, setIncidents] = useState<Incident[]>([]);
+  const [monitors, setMonitors] = useState<MonitorOption[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/incidents')
-      .then((res) => res.json())
-      .then((data) => setIncidents(data))
-      .catch((err) => console.error('Failed to load incidents', err))
+    Promise.all([
+      fetch('/api/incidents').then((r) => r.json()),
+      fetch('/api/monitors').then((r) => r.json()),
+    ])
+      .then(([incidentData, monitorData]) => {
+        setIncidents(incidentData);
+        setMonitors(monitorData.map((m: any) => ({ id: m.id, name: m.name })));
+      })
+      .catch((err) => console.error('Failed to load data', err))
       .finally(() => setLoading(false));
   }, []);
 
@@ -80,10 +91,10 @@ export default function IncidentsPage() {
           <h1 className="text-3xl font-bold mb-2">Incidents</h1>
           <p className="text-muted-foreground">Track and manage service incidents</p>
         </div>
-        <Button className="gap-2">
-          <Plus className="w-4 h-4" />
-          <span className="hidden sm:inline">Report Incident</span>
-        </Button>
+        <CreateIncidentDialog
+          monitors={monitors}
+          onCreated={(inc) => setIncidents((prev) => [inc, ...prev])}
+        />
       </div>
 
       {incidents.length === 0 ? (
