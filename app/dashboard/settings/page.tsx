@@ -2,15 +2,88 @@
 
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Mail, Lock, CreditCard, Trash2, Key, Bell, Users } from 'lucide-react';
+import { Mail, Lock, Trash2, Globe, Plus, Pencil, ExternalLink, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useSession } from 'next-auth/react';
+import { StatusPageDialog } from '@/components/status-page-dialog';
+import { DeleteConfirmDialog } from '@/components/delete-confirm-dialog';
+import { toast } from 'sonner';
+import Link from 'next/link';
+
+interface Monitor {
+  id: string;
+  name: string;
+}
+
+interface StatusPageItem {
+  id: string;
+  title: string;
+  slug: string;
+  description: string | null;
+  monitorIds: string[];
+  isPublic: boolean;
+  createdAt: string;
+}
 
 export default function SettingsPage() {
-  const [email, setEmail] = useState('user@example.com');
-  const [notifications, setNotifications] = useState(true);
-  const [showApiKey, setShowApiKey] = useState(false);
-  const apiKey = 'pk_live_1234567890abcdef';
+  const { data: session } = useSession();
+  const [monitors, setMonitors] = useState<Monitor[]>([]);
+  const [statusPages, setStatusPages] = useState<StatusPageItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Dialog state
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingPage, setEditingPage] = useState<StatusPageItem | undefined>();
+  const [deleteTarget, setDeleteTarget] = useState<StatusPageItem | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const fetchData = useCallback(async () => {
+    try {
+      const [m, sp] = await Promise.all([
+        fetch('/api/monitors').then((r) => r.json()),
+        fetch('/api/status-pages').then((r) => r.json()),
+      ]);
+      setMonitors(Array.isArray(m) ? m : []);
+      setStatusPages(Array.isArray(sp) ? sp : []);
+    } catch {
+      // silent
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const handleCreate = () => {
+    setEditingPage(undefined);
+    setDialogOpen(true);
+  };
+
+  const handleEdit = (page: StatusPageItem) => {
+    setEditingPage(page);
+    setDialogOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/status-pages/${deleteTarget.id}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) throw new Error('Failed to delete');
+      toast.success('Status page deleted');
+      fetchData();
+    } catch {
+      toast.error('Failed to delete status page');
+    } finally {
+      setDeleting(false);
+      setDeleteTarget(null);
+    }
+  };
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-3xl">
@@ -25,121 +98,73 @@ export default function SettingsPage() {
           </h2>
           <div className="space-y-4">
             <div>
+              <label className="text-sm font-medium block mb-2">Name</label>
+              <Input type="text" value={session?.user?.name ?? ''} disabled />
+            </div>
+            <div>
               <label className="text-sm font-medium block mb-2">Email Address</label>
-              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-            </div>
-            <div>
-              <label className="text-sm font-medium block mb-2">Account Created</label>
-              <Input type="text" value="January 15, 2024" disabled />
-            </div>
-            <Button>Save Changes</Button>
-          </div>
-        </Card>
-
-        {/* Notifications */}
-        <Card className="p-6">
-          <h2 className="font-semibold text-lg mb-4 flex items-center gap-2">
-            <Bell className="w-5 h-5" />
-            Notifications
-          </h2>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium">Email Alerts</p>
-                <p className="text-sm text-muted-foreground">Receive alerts when services go down</p>
-              </div>
-              <input
-                type="checkbox"
-                checked={notifications}
-                onChange={(e) => setNotifications(e.target.checked)}
-                className="w-5 h-5 accent-primary"
-              />
-            </div>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium">Slack Integration</p>
-                <p className="text-sm text-muted-foreground">Send notifications to Slack</p>
-              </div>
-              <Button variant="outline" size="sm">
-                Connect
-              </Button>
-            </div>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium">SMS Alerts</p>
-                <p className="text-sm text-muted-foreground">Get SMS for critical incidents</p>
-              </div>
-              <Button variant="outline" size="sm">
-                Configure
-              </Button>
+              <Input type="email" value={session?.user?.email ?? ''} disabled />
             </div>
           </div>
         </Card>
 
-        {/* API Keys */}
+        {/* Status Pages */}
         <Card className="p-6">
-          <h2 className="font-semibold text-lg mb-4 flex items-center gap-2">
-            <Key className="w-5 h-5" />
-            API Keys
-          </h2>
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">Manage API keys for programmatic access to Watchtower</p>
-            <div className="flex gap-2">
-              <div className="flex-1 relative">
-                <Input
-                  type={showApiKey ? 'text' : 'password'}
-                  value={apiKey}
-                  readOnly
-                  className="pr-12"
-                />
-              </div>
-              <Button
-                variant="outline"
-                onClick={() => setShowApiKey(!showApiKey)}
-              >
-                {showApiKey ? 'Hide' : 'Show'}
-              </Button>
-              <Button variant="outline">Copy</Button>
-            </div>
-            <Button variant="outline" className="w-full">
-              Generate New Key
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-semibold text-lg flex items-center gap-2">
+              <Globe className="w-5 h-5" />
+              Status Pages
+            </h2>
+            <Button size="sm" onClick={handleCreate}>
+              <Plus className="w-4 h-4 mr-1" /> New
             </Button>
           </div>
-        </Card>
 
-        {/* Team */}
-        <Card className="p-6">
-          <h2 className="font-semibold text-lg mb-4 flex items-center gap-2">
-            <Users className="w-5 h-5" />
-            Team
-          </h2>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
-              <div>
-                <p className="font-medium">user@example.com</p>
-                <p className="text-sm text-muted-foreground">Owner</p>
-              </div>
+          {loading ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
             </div>
-            <Button variant="outline" className="w-full">
-              Invite Team Member
-            </Button>
-          </div>
-        </Card>
-
-        {/* Billing */}
-        <Card className="p-6">
-          <h2 className="font-semibold text-lg mb-4 flex items-center gap-2">
-            <CreditCard className="w-5 h-5" />
-            Billing
-          </h2>
-          <div className="space-y-4">
-            <div>
-              <p className="font-medium mb-2">Current Plan: Professional</p>
-              <p className="text-sm text-muted-foreground mb-4">$29/month - Renews on March 15, 2024</p>
+          ) : statusPages.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-6">
+              No status pages yet. Create one to share your service status publicly.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {statusPages.map((page) => (
+                <div
+                  key={page.id}
+                  className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium truncate">{page.title}</p>
+                    <p className="text-xs text-muted-foreground">
+                      /status/{page.slug} &middot;{' '}
+                      {page.isPublic ? 'Public' : 'Private'} &middot;{' '}
+                      {page.monitorIds.length} monitor{page.monitorIds.length !== 1 ? 's' : ''}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1 ml-2">
+                    <Link href={`/status/${page.slug}`} target="_blank">
+                      <Button variant="ghost" size="sm">
+                        <ExternalLink className="w-4 h-4" />
+                      </Button>
+                    </Link>
+                    <Button variant="ghost" size="sm" onClick={() => handleEdit(page)}>
+                      <Pencil className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => setDeleteTarget(page)}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
             </div>
-            <Button variant="outline">Manage Subscription</Button>
-            <Button variant="outline">Download Invoice</Button>
-          </div>
+          )}
         </Card>
 
         {/* Security */}
@@ -151,12 +176,6 @@ export default function SettingsPage() {
           <div className="space-y-4">
             <Button variant="outline" className="w-full">
               Change Password
-            </Button>
-            <Button variant="outline" className="w-full">
-              Enable Two-Factor Authentication
-            </Button>
-            <Button variant="outline" className="w-full">
-              View Active Sessions
             </Button>
           </div>
         </Card>
@@ -177,6 +196,25 @@ export default function SettingsPage() {
           </div>
         </Card>
       </div>
+
+      {/* Status Page Dialog */}
+      <StatusPageDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        onSuccess={fetchData}
+        monitors={monitors}
+        initial={editingPage}
+      />
+
+      {/* Delete Confirmation */}
+      <DeleteConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        onConfirm={handleDelete}
+        title="Delete Status Page"
+        description={`Are you sure you want to delete "${deleteTarget?.title}"? This cannot be undone.`}
+        loading={deleting}
+      />
     </div>
   );
 }

@@ -41,3 +41,22 @@ export const updateIncidentSchema = z.object({
 
 export type CreateIncidentInput = z.infer<typeof createIncidentSchema>;
 export type UpdateIncidentInput = z.infer<typeof updateIncidentSchema>;
+
+// ── Status Page schemas ────────────────────────────────────
+
+export const createStatusPageSchema = z.object({
+  title: z.string().min(1, "Title is required").max(100),
+  slug: z
+    .string()
+    .min(1, "Slug is required")
+    .max(60)
+    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Slug must be lowercase alphanumeric with hyphens"),
+  description: z.string().max(300).optional(),
+  monitorIds: z.array(z.string()).default([]),
+  isPublic: z.boolean().default(true),
+});
+
+export const updateStatusPageSchema = createStatusPageSchema.partial();
+
+export type CreateStatusPageInput = z.infer<typeof createStatusPageSchema>;
+export type UpdateStatusPageInput = z.infer<typeof updateStatusPageSchema>;

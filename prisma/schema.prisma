@@ -158,6 +158,7 @@ model StatusPage {
   slug        String   @unique
   title       String
   description String?
+  monitorIds  String[] @default([])
   isPublic    Boolean  @default(true)
   createdAt   DateTime @default(now())
 
