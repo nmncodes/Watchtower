@@ -4,15 +4,33 @@ import { updateMonitorSchema } from "@/lib/validations";
 
 // GET /api/monitors/:id
 export async function GET(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+  const { searchParams } = new URL(req.url);
+  const range = searchParams.get("range") || "24h";
+
+  // Compute date cutoff based on range
+  const now = new Date();
+  const cutoff = new Date(now);
+  if (range === "7d") {
+    cutoff.setDate(cutoff.getDate() - 7);
+  } else if (range === "30d") {
+    cutoff.setDate(cutoff.getDate() - 30);
+  } else {
+    cutoff.setHours(cutoff.getHours() - 24);
+  }
+
   try {
     const monitor = await prisma.monitor.findUnique({
       where: { id },
       include: {
-        checks: { orderBy: { createdAt: "desc" }, take: 50 },
+        checks: {
+          where: { createdAt: { gte: cutoff } },
+          orderBy: { createdAt: "desc" },
+          take: 500,
+        },
         incidents: { orderBy: { startedAt: "desc" }, take: 10, include: { timeline: true } },
       },
     });

@@ -10,6 +10,13 @@ import { toast } from 'sonner';
 import { CreateMonitorDialog } from '@/components/create-monitor-dialog';
 import { EditMonitorDialog } from '@/components/edit-monitor-dialog';
 import { DeleteConfirmDialog } from '@/components/delete-confirm-dialog';
+import { ResponsiveContainer, AreaChart, Area } from 'recharts';
+
+interface CheckData {
+  status: string;
+  responseTime: number;
+  createdAt: string;
+}
 
 interface Monitor {
   id: string;
@@ -20,6 +27,37 @@ interface Monitor {
   region: string;
   lastCheckAt: string | null;
   createdAt: string;
+  checks: CheckData[];
+}
+
+function MiniSparkline({ data, color = 'var(--primary)' }: { data: number[]; color?: string }) {
+  if (data.length < 2) return <span className="text-xs text-muted-foreground">No data</span>;
+  const chartData = data.map((v, i) => ({ i, v }));
+  const gradientId = `spark-${Math.random().toString(36).slice(2, 8)}`;
+  return (
+    <ResponsiveContainer width={120} height={36}>
+      <AreaChart data={chartData} margin={{ top: 2, right: 0, left: 0, bottom: 2 }}>
+        <defs>
+          <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={color} stopOpacity={0.3} />
+            <stop offset="100%" stopColor={color} stopOpacity={0} />
+          </linearGradient>
+        </defs>
+        <Area type="monotone" dataKey="v" stroke={color} strokeWidth={1.5} fill={`url(#${gradientId})`} dot={false} isAnimationActive={false} />
+      </AreaChart>
+    </ResponsiveContainer>
+  );
+}
+
+function computeUptime(checks: CheckData[]): number {
+  if (checks.length === 0) return 100;
+  const upCount = checks.filter((c) => c.status === 'UP').length;
+  return Math.round((upCount / checks.length) * 10000) / 100;
+}
+
+function computeAvg(checks: CheckData[]): number {
+  if (checks.length === 0) return 0;
+  return Math.round(checks.reduce((a, c) => a + c.responseTime, 0) / checks.length);
 }
 
 export default function MonitorsPage() {
@@ -96,47 +134,64 @@ export default function MonitorsPage() {
         <div className="space-y-4">
           {monitors.map((monitor) => {
             const label = statusLabel(monitor.status);
+            const uptime = computeUptime(monitor.checks);
+            const avgRt = computeAvg(monitor.checks);
+            const sparkData = monitor.checks
+              .slice()
+              .reverse()
+              .map((c) => c.responseTime);
+            const sparkColor = label === 'up' ? 'hsl(142, 71%, 45%)' : label === 'down' ? 'hsl(0, 72%, 51%)' : label === 'degraded' ? 'hsl(48, 96%, 53%)' : 'hsl(0, 0%, 60%)';
             return (
               <Card key={monitor.id} className="p-6 hover:shadow-md transition">
-                <div className="grid md:grid-cols-5 gap-6 items-start mb-6">
+                <div className="flex flex-col md:flex-row md:items-center gap-4">
                   {/* Monitor Info */}
-                  <div className="md:col-span-2">
-                    <div className="flex items-start gap-3">
-                      <div
-                        className={`w-3 h-3 rounded-full mt-1.5 shrink-0 ${
-                          label === 'up' ? 'bg-green-600' : label === 'down' ? 'bg-red-600' : label === 'degraded' ? 'bg-yellow-600' : 'bg-gray-400'
-                        }`}
-                      />
-                      <div>
-                        <h3 className="font-semibold text-lg">{monitor.name}</h3>
-                        <p className="text-sm text-muted-foreground break-all">{monitor.url}</p>
-                      </div>
+                  <div className="flex items-start gap-3 md:w-70 shrink-0">
+                    <div
+                      className={`w-3 h-3 rounded-full mt-1.5 shrink-0 ${
+                        label === 'up' ? 'bg-green-600' : label === 'down' ? 'bg-red-600' : label === 'degraded' ? 'bg-yellow-600' : 'bg-gray-400'
+                      }`}
+                    />
+                    <div className="min-w-0">
+                      <h3 className="font-semibold text-lg truncate">{monitor.name}</h3>
+                      <p className="text-sm text-muted-foreground break-all line-clamp-1">{monitor.url}</p>
                     </div>
                   </div>
 
+                  {/* Sparkline */}
+                  <div className="flex-1 flex items-center justify-center">
+                    <MiniSparkline data={sparkData} color={sparkColor} />
+                  </div>
+
                   {/* Stats */}
-                  <div className="grid grid-cols-2 gap-4 md:col-span-2">
+                  <div className="grid grid-cols-4 gap-4 shrink-0 text-center">
                     <div>
-                      <p className="text-xs text-muted-foreground mb-1">Status</p>
-                      <p className="text-2xl font-bold capitalize">{label}</p>
+                      <p className="text-xs text-muted-foreground mb-0.5">Status</p>
+                      <p className="text-sm font-bold capitalize">{label}</p>
                     </div>
                     <div>
-                      <p className="text-xs text-muted-foreground mb-1">Check Interval</p>
-                      <p className="text-2xl font-bold">{monitor.interval}s</p>
+                      <p className="text-xs text-muted-foreground mb-0.5">Uptime</p>
+                      <p className={`text-sm font-bold ${uptime >= 99 ? 'text-green-600' : uptime >= 95 ? 'text-yellow-600' : 'text-red-600'}`}>{uptime}%</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-0.5">Avg</p>
+                      <p className="text-sm font-bold">{avgRt}<span className="font-normal text-muted-foreground">ms</span></p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-0.5">Interval</p>
+                      <p className="text-sm font-bold">{monitor.interval}s</p>
                     </div>
                   </div>
 
                   {/* Actions */}
-                  <div className="flex gap-2 justify-end">
+                  <div className="flex gap-1 shrink-0">
                     <Link href={`/dashboard/monitors/${monitor.id}`}>
-                      <Button variant="ghost" size="sm" className="gap-2">
+                      <Button variant="ghost" size="sm">
                         <Eye className="w-4 h-4" />
                       </Button>
                     </Link>
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="gap-2"
                       onClick={() => setEditMonitor(monitor)}
                     >
                       <Edit2 className="w-4 h-4" />
@@ -144,7 +199,7 @@ export default function MonitorsPage() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="gap-2 text-destructive"
+                      className="text-destructive"
                       onClick={() => setDeleteId(monitor.id)}
                     >
                       <Trash2 className="w-4 h-4" />
@@ -152,7 +207,7 @@ export default function MonitorsPage() {
                   </div>
                 </div>
 
-                <div className="mt-4 text-xs text-muted-foreground">
+                <div className="mt-3 text-xs text-muted-foreground">
                   Last checked: {monitor.lastCheckAt ? formatDistanceToNow(new Date(monitor.lastCheckAt), { addSuffix: true }) : 'Never'}
                 </div>
               </Card>

@@ -14,6 +14,13 @@ export async function GET() {
     const monitors = await prisma.monitor.findMany({
       where: { userId },
       orderBy: { createdAt: "desc" },
+      include: {
+        checks: {
+          orderBy: { createdAt: "desc" },
+          take: 30,
+          select: { status: true, responseTime: true, createdAt: true },
+        },
+      },
     });
     return NextResponse.json(monitors);
   } catch (error) {
