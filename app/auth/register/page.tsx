@@ -26,6 +26,7 @@ export default function RegisterPage() {
     const password = formData.get('password') as string;
 
     try {
+      // call registration API
       const res = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -46,6 +47,7 @@ export default function RegisterPage() {
 
       if (result?.error) {
         // Registration succeeded but auto-login failed — redirect to login
+        // backup logic
         router.push('/auth/login');
       } else {
         router.push('/dashboard');
