@@ -3,8 +3,9 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useSession, signOut } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
-import { Menu, X, Moon, Sun, LogOut, BarChart3, AlertCircle, Settings, Home } from 'lucide-react';
+import { Menu, X, Moon, Sun, LogOut, BarChart3, AlertCircle, Settings, Home, User } from 'lucide-react';
 
 export default function DashboardLayout({
   children,
@@ -14,6 +15,7 @@ export default function DashboardLayout({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isDark, setIsDark] = useState(false);
   const pathname = usePathname();
+  const { data: session } = useSession();
 
   const isActive = (path: string) => pathname === path;
 
@@ -46,13 +48,23 @@ export default function DashboardLayout({
             </div>
 
             <div className="flex items-center gap-4">
+              {session?.user && (
+                <span className="text-sm text-muted-foreground hidden sm:inline">
+                  {session.user.name || session.user.email}
+                </span>
+              )}
               <button
                 onClick={() => setIsDark(!isDark)}
                 className="p-2 hover:bg-muted rounded-lg transition"
               >
                 {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
               </button>
-              <Button variant="ghost" size="sm" className="gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="gap-2"
+                onClick={() => signOut({ callbackUrl: '/auth/login' })}
+              >
                 <LogOut className="w-4 h-4" />
                 <span className="hidden sm:inline">Sign Out</span>
               </Button>

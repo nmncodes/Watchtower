@@ -1,21 +1,20 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createMonitorSchema } from "@/lib/validations";
-
-// Temporary: upsert a default dev user until auth is added (Phase 5)
-async function getDefaultUserId() {
-  const user = await prisma.user.upsert({
-    where: { email: "dev@watchtower.local" },
-    update: {},
-    create: { email: "dev@watchtower.local", name: "Dev User" },
-  });
-  return user.id;
-}
+import { getCurrentUserId } from "@/lib/session";
 
 // GET /api/monitors
 export async function GET() {
   try {
-    const monitors = await prisma.monitor.findMany({ orderBy: { createdAt: "desc" } });
+    const userId = await getCurrentUserId();
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const monitors = await prisma.monitor.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+    });
     return NextResponse.json(monitors);
   } catch (error) {
     console.error(error);
@@ -26,6 +25,11 @@ export async function GET() {
 // POST /api/monitors
 export async function POST(request: Request) {
   try {
+    const userId = await getCurrentUserId();
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await request.json();
     const parsed = createMonitorSchema.safeParse(body);
 
@@ -36,7 +40,6 @@ export async function POST(request: Request) {
       );
     }
 
-    const userId = await getDefaultUserId();
     const monitor = await prisma.monitor.create({
       data: { ...parsed.data, userId, status: "UP" },
     });
