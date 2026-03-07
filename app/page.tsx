@@ -126,7 +126,7 @@ export default function Home() {
               {[
                 {
                   name: 'Starter',
-                  price: '$0',
+                  price: '₹0',
                   period: 'Forever',
                   description: 'Perfect for testing',
                   features: [
@@ -141,7 +141,7 @@ export default function Home() {
                 },
                 {
                   name: 'Professional',
-                  price: '$29',
+                  price: '₹100',
                   period: '/month',
                   description: 'For growing teams',
                   features: [
@@ -158,8 +158,8 @@ export default function Home() {
                 },
                 {
                   name: 'Enterprise',
-                  price: 'Custom',
-                  period: 'pricing',
+                  price: '₹150',
+                  period: '/month',
                   description: 'For large organizations',
                   features: [
                     'Unlimited monitors',
