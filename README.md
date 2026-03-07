@@ -65,7 +65,7 @@ Built with **Next.js 16**, **Prisma**, **Neon PostgreSQL**, and **shadcn/ui**.
 | **Database** | [Neon PostgreSQL](https://neon.tech/) (serverless) |
 | **ORM** | [Prisma 7](https://www.prisma.io/) with `@prisma/adapter-neon` |
 | **Auth** | [NextAuth.js v5](https://authjs.dev/) (Credentials provider, JWT) |
-| **UI Components** | [shadcn/ui](https://ui.shadcn.com/) (New York style) + [Radix UI](https://www.radix-ui.com/) |
+| **UI Components** | [shadcn/ui](https://ui.shadcn.com/) + [Radix UI](https://www.radix-ui.com/) |
 | **Charts** | [Recharts 2](https://recharts.org/) |
 | **Styling** | [Tailwind CSS 4](https://tailwindcss.com/) |
 | **Validation** | [Zod](https://zod.dev/) |
