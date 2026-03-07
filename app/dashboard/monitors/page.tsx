@@ -49,14 +49,14 @@ function MiniSparkline({ data, color = 'var(--primary)' }: { data: number[]; col
   );
 }
 
-function computeUptime(checks: CheckData[]): number {
-  if (checks.length === 0) return 100;
+function computeUptime(checks?: CheckData[]): number {
+  if (!Array.isArray(checks) || checks.length === 0) return 100;
   const upCount = checks.filter((c) => c.status === 'UP').length;
   return Math.round((upCount / checks.length) * 10000) / 100;
 }
 
-function computeAvg(checks: CheckData[]): number {
-  if (checks.length === 0) return 0;
+function computeAvg(checks?: CheckData[]): number {
+  if (!Array.isArray(checks) || checks.length === 0) return 0;
   return Math.round(checks.reduce((a, c) => a + c.responseTime, 0) / checks.length);
 }
 
@@ -71,12 +71,18 @@ export default function MonitorsPage() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
-  useEffect(() => {
+  const fetchMonitors = () => {
     fetch('/api/monitors')
       .then((res) => res.json())
       .then((data) => setMonitors(data))
       .catch((err) => console.error('Failed to load monitors', err))
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchMonitors();
+    const interval = setInterval(fetchMonitors, 15_000);
+    return () => clearInterval(interval);
   }, []);
 
   const handleDelete = async () => {
@@ -133,10 +139,11 @@ export default function MonitorsPage() {
       ) : (
         <div className="space-y-4">
           {monitors.map((monitor) => {
+            const checks = Array.isArray(monitor.checks) ? monitor.checks : [];
             const label = statusLabel(monitor.status);
-            const uptime = computeUptime(monitor.checks);
-            const avgRt = computeAvg(monitor.checks);
-            const sparkData = monitor.checks
+            const uptime = computeUptime(checks);
+            const avgRt = computeAvg(checks);
+            const sparkData = checks
               .slice()
               .reverse()
               .map((c) => c.responseTime);

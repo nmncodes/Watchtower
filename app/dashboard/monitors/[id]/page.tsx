@@ -94,7 +94,12 @@ export default function MonitorDetailPage() {
 
   useEffect(() => {
     fetchMonitor(timeRange);
-  }, [params.id, timeRange, fetchMonitor]);
+
+    // Auto-refresh based on monitor interval (or every 15s as fallback)
+    const pollMs = monitor?.interval ? Math.max(monitor.interval * 1000, 10_000) : 15_000;
+    const interval = setInterval(() => fetchMonitor(timeRange), pollMs);
+    return () => clearInterval(interval);
+  }, [params.id, timeRange, fetchMonitor, monitor?.interval]);
 
   const handleCheckNow = async () => {
     setChecking(true);

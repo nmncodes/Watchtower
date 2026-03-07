@@ -19,11 +19,9 @@ export default function Home() {
 
   const features = [
     { title: 'Real-time Monitoring', description: 'Check your endpoints every minute and get instant alerts when issues occur.', icon: Activity },
-    { title: 'Status Pages', description: 'Beautiful, customizable status pages that build customer trust and reduce support tickets.', icon: BarChart3 },
     { title: 'Incident Management', description: 'Track, manage, and communicate incidents with your team and customers in one place.', icon: Bell },
-    { title: 'Response Time Tracking', description: 'Monitor response times across different time periods to catch performance regressions.', icon: Clock },
     { title: 'Uptime Visualization', description: 'See 90-day uptime trends with beautiful charts and detailed analytics.', icon: TrendingUp },
-    { title: 'Team Collaboration', description: 'Invite team members, manage incidents together, and share status pages.', icon: Users },
+
   ];
 
   const plans = [
@@ -59,7 +57,7 @@ export default function Home() {
           </div>
           <div className="hidden md:flex items-center gap-8">
             <a href="#features" className="text-sm text-muted-foreground hover:text-foreground transition">Features</a>
-            <a href="#pricing" className="text-sm text-muted-foreground hover:text-foreground transition">Pricing</a>
+            {/* <a href="#pricing" className="text-sm text-muted-foreground hover:text-foreground transition">Pricing</a> */}
           </div>
           <div className="flex items-center gap-3">
             <button
@@ -69,10 +67,10 @@ export default function Home() {
               {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </button>
             <Link href="/auth/login">
-              <Button variant="ghost" size="sm">Sign in</Button>
+              <Button variant="link" size="sm">Sign in</Button>
             </Link>
             <Link href="/dashboard">
-              <Button size="sm">Get Started</Button>
+              <Button  variant={'link'} size='sm' className='text-bold' >Dashboard</Button>
             </Link>
           </div>
         </div>
@@ -83,25 +81,37 @@ export default function Home() {
         <div className="max-w-3xl mx-auto">
           <div className="inline-flex items-center gap-2 mb-8 px-3 py-1.5 rounded-full border border-border bg-accent/50 text-sm text-muted-foreground">
             <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-            Monitoring services worldwide
+            Monitor services worldwide
           </div>
-          <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.08] mb-6">
+          <h1 className="text-5xl sm:text-6xl lg:text-7xl  tracking-tight leading-[1.08] mb-6">
             Know when
             <br />
-            things break.
+            things{' '}
+            <span className="font-bold text-minor break-trigger cursor-default">
+              <span className="word-break-effect" aria-label="break">
+                <span className="word-break-core">break</span>
+                <span className="word-break-fragment-top" aria-hidden="true">
+                  break
+                </span>
+                <span className="word-break-fragment-bottom" aria-hidden="true">
+                  break
+                </span>
+              </span>
+              .
+            </span>
           </h1>
           <p className="text-lg sm:text-xl text-muted-foreground leading-relaxed max-w-xl mb-10">
             Watchtower monitors your services around the clock, sends instant alerts, and keeps your customers informed with public status pages.
           </p>
           <div className="flex flex-wrap gap-3">
             <Link href="/dashboard">
-              <Button size="lg" className="gap-2 h-12 px-6">
+              <Button  variant={'link'} size="lg" className="gap-2 h-12 px-6">
                 Start Monitoring <ArrowRight className="w-4 h-4" />
               </Button>
             </Link>
             <Link href="#features">
-              <Button size="lg" variant="outline" className="h-12 px-6">
-                Learn More
+              <Button size="lg" variant={'link'} className="h-12 px-6">
+                Features 
               </Button>
             </Link>
           </div>
@@ -138,7 +148,7 @@ export default function Home() {
       </section>
 
       {/* Pricing */}
-      <section id="pricing" className="py-24 px-6 bg-accent/30">
+      {/* <section id="pricing" className="py-24 px-6 bg-accent/30">
         <div className="max-w-6xl mx-auto">
           <div className="text-center max-w-2xl mx-auto mb-16">
             <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">Pricing</p>
@@ -185,7 +195,7 @@ export default function Home() {
             ))}
           </div>
         </div>
-      </section>
+      </section> */}
 
       {/* CTA */}
       <section className="py-24 px-6 border-t border-border/40">
@@ -196,7 +206,7 @@ export default function Home() {
           </p>
           <Link href="/dashboard">
             <Button size="lg" className="h-12 px-8 gap-2">
-              Start Your Free Trial <ArrowRight className="w-4 h-4" />
+              Dashboard  <ArrowRight className="w-4 h-4" />
             </Button>
           </Link>
         </div>

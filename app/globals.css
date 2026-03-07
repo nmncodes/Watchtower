@@ -39,6 +39,7 @@
   --sidebar-accent-foreground: oklch(0.22 0.008 55);
   --sidebar-border: oklch(0.90 0.005 70);
   --sidebar-ring: oklch(0.40 0.008 55);
+  --minor: oklch(79.048% 0.09676 65.127 / 0.658);
 }
 
 .dark {
@@ -76,6 +77,8 @@
   --sidebar-accent-foreground: oklch(0.88 0.005 70);
   --sidebar-border: oklch(0.26 0.006 55);
   --sidebar-ring: oklch(0.80 0.005 70);
+  --minor: oklch(79.048% 0.09676 65.127 / 0.658);
+
 }
 
 @theme inline {
@@ -105,6 +108,7 @@
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
+  --color-minor: var(--minor);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -117,6 +121,98 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@keyframes word-break-core {
+  0% {
+    transform: translateX(0);
+    filter: none;
+  }
+  30% {
+    transform: translateX(1px);
+    filter: blur(0.3px);
+  }
+  60% {
+    transform: translateX(-1px);
+    filter: blur(0.6px);
+  }
+  100% {
+    transform: translateX(0);
+    filter: none;
+  }
+}
+
+@keyframes word-break-top {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) rotate(0deg);
+  }
+  25% {
+    opacity: 0.55;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-8px, -6px) rotate(-6deg);
+  }
+}
+
+@keyframes word-break-bottom {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) rotate(0deg);
+  }
+  25% {
+    opacity: 0.55;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(9px, 7px) rotate(5deg);
+  }
+}
+
+.word-break-effect {
+  position: relative;
+  display: inline-block;
+}
+
+.word-break-core {
+  display: inline-block;
+}
+
+.word-break-fragment-top,
+.word-break-fragment-bottom {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+}
+
+.word-break-fragment-top {
+  clip-path: polygon(0 0, 100% 0, 100% 45%, 0 60%);
+}
+
+.word-break-fragment-bottom {
+  clip-path: polygon(0 52%, 100% 40%, 100% 100%, 0 100%);
+}
+
+.break-trigger:hover .word-break-core {
+  animation: word-break-core 450ms steps(2, end) 1;
+}
+
+.break-trigger:hover .word-break-fragment-top {
+  animation: word-break-top 450ms ease-out 1;
+}
+
+.break-trigger:hover .word-break-fragment-bottom {
+  animation: word-break-bottom 450ms ease-out 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .break-trigger:hover .word-break-core,
+  .break-trigger:hover .word-break-fragment-top,
+  .break-trigger:hover .word-break-fragment-bottom {
+    animation: none;
+  }
 }
 
 @layer base {

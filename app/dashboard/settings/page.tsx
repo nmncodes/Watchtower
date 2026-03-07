@@ -2,7 +2,7 @@
 
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Mail, Lock, Trash2, Globe, Plus, Pencil, ExternalLink, Loader2, Bell, Webhook } from 'lucide-react';
+import { Mail, Lock, Trash2, Globe, Plus, Pencil, ExternalLink, Loader2, Bell, Webhook, Send } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { useState, useEffect, useCallback } from 'react';
@@ -55,6 +55,7 @@ export default function SettingsPage() {
   const [editingChannel, setEditingChannel] = useState<NotificationChannel | undefined>();
   const [deleteNotifTarget, setDeleteNotifTarget] = useState<NotificationChannel | null>(null);
   const [deletingNotif, setDeletingNotif] = useState(false);
+  const [testingChannelId, setTestingChannelId] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     try {
@@ -134,6 +135,24 @@ export default function SettingsPage() {
     } finally {
       setDeletingNotif(false);
       setDeleteNotifTarget(null);
+    }
+  };
+
+  const handleTestChannel = async (channel: NotificationChannel) => {
+    setTestingChannelId(channel.id);
+    try {
+      const res = await fetch(`/api/notification-channels/${channel.id}/test`, {
+        method: 'POST',
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to send test');
+      }
+      toast.success('Test notification sent! Check your inbox.');
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setTestingChannelId(null);
     }
   };
 
@@ -266,6 +285,19 @@ export default function SettingsPage() {
                     </p>
                   </div>
                   <div className="flex items-center gap-2 ml-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      title="Send test notification"
+                      disabled={testingChannelId === ch.id}
+                      onClick={() => handleTestChannel(ch)}
+                    >
+                      {testingChannelId === ch.id ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Send className="w-4 h-4" />
+                      )}
+                    </Button>
                     <Switch
                       checked={ch.enabled}
                       onCheckedChange={() => handleToggleChannel(ch)}

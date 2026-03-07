@@ -52,14 +52,14 @@ function MiniSparkline({ data }: { data: number[] }) {
   );
 }
 
-function computeUptime(checks: CheckData[]): number {
-  if (checks.length === 0) return 100;
+function computeUptime(checks?: CheckData[]): number {
+  if (!Array.isArray(checks) || checks.length === 0) return 100;
   const upCount = checks.filter((c) => c.status === 'UP').length;
   return Math.round((upCount / checks.length) * 10000) / 100;
 }
 
-function computeAvgResponseTime(checks: CheckData[]): number {
-  if (checks.length === 0) return 0;
+function computeAvgResponseTime(checks?: CheckData[]): number {
+  if (!Array.isArray(checks) || checks.length === 0) return 0;
   const sum = checks.reduce((acc, c) => acc + c.responseTime, 0);
   return Math.round(sum / checks.length);
 }

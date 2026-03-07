@@ -108,8 +108,8 @@ export async function checkMonitor(monitorId: string) {
       });
     }
 
-    // Send DOWN notification only on status change
-    if (statusChanged) {
+    // Send DOWN notification on status change, or on the very first check
+    if (statusChanged || !monitor.lastCheckAt) {
       sendNotifications(monitor.userId, {
         monitorName: monitor.name,
         monitorUrl: monitor.url,
