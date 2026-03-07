@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
+import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
 import { Menu, X, Moon, Sun, LogOut, BarChart3, AlertCircle, Settings, Home, User } from 'lucide-react';
 
@@ -13,9 +14,16 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [isDark, setIsDark] = useState(false);
+  const { resolvedTheme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
   const pathname = usePathname();
   const { data: session } = useSession();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const isDark = mounted && resolvedTheme === 'dark';
 
   const isActive = (path: string) => pathname === path;
 
@@ -27,8 +35,7 @@ export default function DashboardLayout({
   ];
 
   return (
-    <div className={isDark ? 'dark' : ''}>
-      <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen bg-background text-foreground">
         {/* Top Navigation */}
         <nav className="fixed top-0 w-full bg-background/80 backdrop-blur-md border-b border-border z-40">
           <div className="h-16 px-4 sm:px-6 flex items-center justify-between">
@@ -40,8 +47,12 @@ export default function DashboardLayout({
                 {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
               </button>
               <Link href="/dashboard" className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-                  <span className="text-primary-foreground font-bold text-lg">P</span>
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center">
+                  <img
+                    draggable={false}
+                    src={isDark ? '/newtowerr.png' : '/watchtowerr.png'}
+                    alt="Watchtower"
+                  />
                 </div>
                 <span className="font-bold text-xl hidden sm:inline">Watchtower</span>
               </Link>
@@ -54,7 +65,7 @@ export default function DashboardLayout({
                 </span>
               )}
               <button
-                onClick={() => setIsDark(!isDark)}
+                onClick={() => setTheme(isDark ? 'light' : 'dark')}
                 className="p-2 hover:bg-muted rounded-lg transition"
               >
                 {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
@@ -110,7 +121,6 @@ export default function DashboardLayout({
           )}
           {children}
         </main>
-      </div>
     </div>
   );
 }

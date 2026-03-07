@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/card';
@@ -9,11 +9,20 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader2 } from 'lucide-react';
 import Link from 'next/link';
+import { useTheme } from 'next-themes';
 
 export default function RegisterPage() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const[mounted, setMounted] = useState(false);
+  const { resolvedTheme } = useTheme();
+
+    useEffect(() => {
+      setMounted(true);
+    }, []);
+  
+    const isDark = mounted && resolvedTheme === 'dark';
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -64,8 +73,13 @@ export default function RegisterPage() {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md p-8">
         <div className="text-center mb-8">
-          <div className="w-12 h-12 rounded-lg bg-primary flex items-center justify-center mx-auto mb-4">
-            <span className="text-primary-foreground font-bold text-2xl">W</span>
+          <div className="w-12 h-12 rounded-lg flex items-center justify-center mx-auto mb-4">
+              <img
+                  draggable={false}
+                  src={isDark ? '/newtowerr.png' : '/watchtowerr.png'}
+                  alt="Watchtower"
+              />
+
           </div>
           <h1 className="text-2xl font-bold">Create your account</h1>
           <p className="text-muted-foreground mt-2">Start monitoring your services</p>
@@ -78,7 +92,7 @@ export default function RegisterPage() {
               id="name"
               name="name"
               type="text"
-              placeholder="John Doe"
+              placeholder="Your Name"
               required
               className="mt-1"
             />
@@ -90,7 +104,7 @@ export default function RegisterPage() {
               id="email"
               name="email"
               type="email"
-              placeholder="you@example.com"
+              placeholder="something-something@example.com"
               required
               className="mt-1"
             />

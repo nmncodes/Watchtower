@@ -1,24 +1,37 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ArrowRight, Check, Moon, Sun } from 'lucide-react';
 
 export default function Home() {
-  const [isDark, setIsDark] = useState(false);
+  const { resolvedTheme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const isDark = mounted && resolvedTheme === 'dark';
 
   return (
-    <div className={isDark ? 'dark' : ''}>
-      <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen bg-background text-foreground">
         {/* Navigation */}
         <nav className="fixed top-0 w-full bg-background/80 backdrop-blur-md border-b border-border z-50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-                <span className="text-primary-foreground font-bold text-lg">P</span>
+              <Link href="/">
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center">
+                <img
+                  draggable={false}
+                  src={isDark ? '/newtowerr.png' : '/watchtowerr.png'}
+                  alt="Watchtower"
+                />
               </div>
+              </Link>
               <span className="font-bold text-xl">Watchtower</span>
             </div>
             <div className="hidden md:flex items-center gap-8">
@@ -28,7 +41,7 @@ export default function Home() {
             </div>
             <div className="flex items-center gap-4">
               <button
-                onClick={() => setIsDark(!isDark)}
+                onClick={() => setTheme(isDark ? 'light' : 'dark')}
                 className="p-2 hover:bg-muted rounded-lg transition"
               >
                 {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
@@ -235,15 +248,17 @@ export default function Home() {
         <footer className="py-8 px-4 sm:px-6 lg:px-8 border-t border-border">
           <div className="max-w-6xl mx-auto flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-lg bg-primary flex items-center justify-center">
-                <span className="text-primary-foreground font-bold text-sm">P</span>
-              </div>
+              <div className="w-6 h-6 rounded-lg flex items-center justify-center ">
+                <img
+                  draggable={false}
+                  src={isDark ? '/newtowerr.png' : '/watchtowerr.png'}
+                  alt="Watchtower"
+                />              </div>
               <span className="font-semibold">Watchtower</span>
             </div>
             <p className="text-sm text-muted-foreground">© 2026 Watchtower. All rights reserved.</p>
           </div>
         </footer>
-      </div>
     </div>
   );
 }
