@@ -37,47 +37,47 @@ export default function DashboardLayout({
   return (
     <div className="min-h-screen bg-background text-foreground">
         {/* Top Navigation */}
-        <nav className="fixed top-0 w-full bg-background/80 backdrop-blur-md border-b border-border z-40">
-          <div className="h-16 px-4 sm:px-6 flex items-center justify-between">
-            <div className="flex items-center gap-4">
+        <nav className="fixed top-0 w-full bg-background/80 backdrop-blur-lg border-b border-border/60 z-40">
+          <div className="h-14 px-4 sm:px-6 flex items-center justify-between">
+            <div className="flex items-center gap-3">
               <button
                 onClick={() => setSidebarOpen(!sidebarOpen)}
-                className="md:hidden p-2 hover:bg-muted rounded-lg transition"
+                className="md:hidden p-2 hover:bg-accent rounded-lg transition"
               >
-                {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+                {sidebarOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
               </button>
-              <Link href="/dashboard" className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg flex items-center justify-center">
+              <Link href="/dashboard" className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-lg flex items-center justify-center">
                   <img
                     draggable={false}
                     src={isDark ? '/newtowerr.png' : '/watchtowerr.png'}
                     alt="Watchtower"
                   />
                 </div>
-                <span className="font-bold text-xl hidden sm:inline">Watchtower</span>
+                <span className="font-semibold text-base tracking-tight hidden sm:inline">Watchtower</span>
               </Link>
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
               {session?.user && (
-                <span className="text-sm text-muted-foreground hidden sm:inline">
+                <span className="text-xs text-muted-foreground hidden sm:inline">
                   {session.user.name || session.user.email}
                 </span>
               )}
               <button
                 onClick={() => setTheme(isDark ? 'light' : 'dark')}
-                className="p-2 hover:bg-muted rounded-lg transition"
+                className="p-2 hover:bg-accent rounded-lg transition"
               >
-                {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
               </button>
               <Button
                 variant="ghost"
                 size="sm"
-                className="gap-2"
+                className="gap-2 text-muted-foreground hover:text-foreground"
                 onClick={() => signOut({ callbackUrl: '/auth/login' })}
               >
                 <LogOut className="w-4 h-4" />
-                <span className="hidden sm:inline">Sign Out</span>
+                <span className="hidden sm:inline text-xs">Sign Out</span>
               </Button>
             </div>
           </div>
@@ -85,24 +85,24 @@ export default function DashboardLayout({
 
         {/* Sidebar */}
         <aside
-          className={`fixed left-0 top-16 h-[calc(100vh-64px)] w-64 bg-sidebar border-r border-sidebar-border transform transition-transform duration-300 z-30 ${
+          className={`fixed left-0 top-14 h-[calc(100vh-56px)] w-56 bg-sidebar border-r border-sidebar-border transform transition-transform duration-200 z-30 ${
             sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
           }`}
         >
-          <nav className="p-4 space-y-2">
+          <nav className="p-3 space-y-1 mt-2">
             {navItems.map((item) => {
               const Icon = item.icon;
               return (
                 <Link key={item.path} href={item.path}>
                   <button
                     onClick={() => setSidebarOpen(false)}
-                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg transition ${
+                    className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition ${
                       isActive(item.path)
-                        ? 'bg-sidebar-primary text-sidebar-primary-foreground'
-                        : 'text-sidebar-foreground hover:bg-sidebar-accent'
+                        ? 'bg-sidebar-primary text-sidebar-primary-foreground font-medium'
+                        : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground'
                     }`}
                   >
-                    <Icon className="w-5 h-5" />
+                    <Icon className="w-4 h-4" />
                     {item.label}
                   </button>
                 </Link>
@@ -112,7 +112,7 @@ export default function DashboardLayout({
         </aside>
 
         {/* Main Content */}
-        <main className="pt-16 md:pl-64">
+        <main className="pt-14 md:pl-56">
           {sidebarOpen && (
             <div
               className="fixed inset-0 bg-black/50 md:hidden z-20"

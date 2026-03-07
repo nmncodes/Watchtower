@@ -34,15 +34,15 @@ export default function StatusIndex() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <header className="border-b border-border py-8 px-4 sm:px-6 lg:px-8">
+      <header className="border-b border-border/60 py-8 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-              <span className="text-primary-foreground font-bold">W</span>
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center">
+              <img draggable={false} src="/watchtowerr.png" alt="Watchtower" />
             </div>
-            <h1 className="text-3xl font-bold">Watchtower Status</h1>
+            <h1 className="text-2xl font-semibold tracking-tight">Watchtower Status</h1>
           </div>
-          <p className="text-muted-foreground">Public status pages</p>
+          <p className="text-sm text-muted-foreground">Public status pages</p>
         </div>
       </header>
 

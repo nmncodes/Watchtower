@@ -70,19 +70,18 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md p-8">
+    <div className="min-h-screen flex items-center justify-center bg-accent/30 p-4">
+      <Card className="w-full max-w-sm p-8 shadow-sm">
         <div className="text-center mb-8">
-          <div className="w-12 h-12 rounded-lg flex items-center justify-center mx-auto mb-4">
+          <div className="w-10 h-10 rounded-lg flex items-center justify-center mx-auto mb-3">
               <img
                   draggable={false}
                   src={isDark ? '/newtowerr.png' : '/watchtowerr.png'}
                   alt="Watchtower"
               />
-
           </div>
-          <h1 className="text-2xl font-bold">Create your account</h1>
-          <p className="text-muted-foreground mt-2">Start monitoring your services</p>
+          <h1 className="text-xl font-semibold tracking-tight">Create your account</h1>
+          <p className="text-sm text-muted-foreground mt-1">Start monitoring your services</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
