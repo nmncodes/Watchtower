@@ -342,7 +342,7 @@ export default function SettingsPage() {
 
         {/* Danger Zone */}
         <Card className="p-6 border-destructive">
-          <h2 className="font-semibold text-lg mb-4 text-destructive flex items-center gap-2">
+          <h2 className="font-semibold text-lg mb-4 text-destructive flex items-center gap-2" >
             <Trash2 className="w-5 h-5" />
             Danger Zone
           </h2>
@@ -350,7 +350,7 @@ export default function SettingsPage() {
             <p className="text-sm text-muted-foreground">
               These actions are irreversible. Please be careful.
             </p>
-            <Button variant="destructive" className="w-full">
+            <Button variant="destructive" className="w-full"  title='Delete'>
               Delete Account
             </Button>
           </div>
