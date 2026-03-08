@@ -3,12 +3,14 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useTheme } from 'next-themes';
+import { signOut, useSession } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ArrowRight, Check, Moon, Sun, Activity, Bell, BarChart3, Clock, TrendingUp, Users } from 'lucide-react';
 
 export default function Home() {
   const { resolvedTheme, setTheme } = useTheme();
+  const { status } = useSession();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -66,9 +68,19 @@ export default function Home() {
             >
               {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </button>
-            <Link href="/auth/login">
-              <Button variant="link" size="sm">Sign in</Button>
-            </Link>
+            {status === 'authenticated' ? (
+              <Button
+                variant="link"
+                size="sm"
+                onClick={() => signOut({ callbackUrl: '/' })}
+              >
+                Log out
+              </Button>
+            ) : (
+              <Link href="/auth/login">
+                <Button variant="link" size="sm">Sign in</Button>
+              </Link>
+            )}
             <Link href="/dashboard">
               <Button  variant={'link'} size='sm' className='text-bold' >Dashboard</Button>
             </Link>

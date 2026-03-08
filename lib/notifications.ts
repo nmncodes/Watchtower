@@ -46,7 +46,7 @@ export async function sendNotifications(
   });
 }
 
-// ── Email ──────────────────────────────────────────────────
+// Email
 
 function getMailTransport() {
   return nodemailer.createTransport({
@@ -83,7 +83,7 @@ async function sendEmailNotification(
         <tr><td style="padding:4px 8px;font-weight:600">HTTP Code</td><td style="padding:4px 8px">${payload.httpCode ?? "timeout"}</td></tr>
         <tr><td style="padding:4px 8px;font-weight:600">Response Time</td><td style="padding:4px 8px">${payload.responseTime}ms</td></tr>
       </table>
-      <p style="color:#64748b;font-size:12px;margin-top:16px">Sent by Watchtower</p>
+      <p style="color:#64748b;font-size:12px;margin-top:16px">Sent by Watchtower, Reply if you have any questions.</p>
     </div>
   `;
 
@@ -95,7 +95,7 @@ async function sendEmailNotification(
   });
 }
 
-// ── Webhook ────────────────────────────────────────────────
+// Webhook 
 
 async function sendWebhookNotification(
   url: string,
