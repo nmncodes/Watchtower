@@ -1,13 +1,13 @@
 generator client {
   provider = "prisma-client"
-  output   = "../lib/generated/prisma"
+  output   = "../lib/generated/prisma" //  store output here 
 }
 
 datasource db {
   provider = "postgresql"
 }
 
-// ── Users ──────────────────────────────────────────────────
+//Users ==> ADMIN and User
 
 enum Role {
   ADMIN
@@ -45,7 +45,7 @@ model Account {
   id_token          String?
   session_state     String?
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id] , onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
 }
@@ -67,7 +67,7 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
-// ── Monitors ───────────────────────────────────────────────
+// Monitors
 
 enum MonitorStatus {
   UP
@@ -94,7 +94,7 @@ model Monitor {
   @@index([userId])
 }
 
-// ── Checks (ping results) ──────────────────────────────────
+// Checks (ping results)
 
 enum CheckStatus {
   UP
@@ -103,7 +103,7 @@ enum CheckStatus {
 }
 
 model Check {
-  id           String      @id @default(cuid())
+  id           String      @id @default(cuid()) // Primary key
   monitorId    String
   status       CheckStatus
   responseTime Int // ms
@@ -115,7 +115,7 @@ model Check {
   @@index([monitorId, createdAt])
 }
 
-// ── Incidents ──────────────────────────────────────────────
+// Incidents
 
 enum IncidentStatus {
   INVESTIGATING
@@ -150,7 +150,7 @@ model IncidentUpdate {
   @@index([incidentId])
 }
 
-// ── Status Pages ───────────────────────────────────────────
+// Status Pages 
 
 
 model StatusPage {
@@ -168,7 +168,7 @@ model StatusPage {
   @@index([userId])
 }
 
-// ── Notifications ──────────────────────────────────────────
+// Notifications
 
 enum NotificationChannelType {
   EMAIL
