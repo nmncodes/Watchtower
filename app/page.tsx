@@ -79,10 +79,10 @@ export default function Home() {
       {/* Hero */}
       <section className="pt-36 pb-24 px-6">
         <div className="max-w-3xl mx-auto">
-          <div className="inline-flex items-center gap-2 mb-8 px-3 py-1.5 rounded-full border border-border bg-accent/50 text-sm text-muted-foreground">
+          {/* <div className="inline-flex items-center gap-2 mb-8 px-3 py-1.5 rounded-full border border-border bg-accent/50 text-sm text-muted-foreground">
             <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
             Monitor services worldwide
-          </div>
+          </div> */}
           <h1 className="text-5xl sm:text-6xl lg:text-7xl  tracking-tight leading-[1.08] mb-6">
             Know when
             <br />

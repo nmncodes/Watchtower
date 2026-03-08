@@ -50,7 +50,7 @@ Built with **Next.js 16**, **Prisma**, **Neon PostgreSQL**, and **shadcn/ui**.
 - **Manual Incidents** — Create and manage incidents manually with status progression: Investigating → Identified → Monitoring → Resolved.
 - **Notifications** — Email (SMTP) and Webhook notifications on status changes (DOWN / RECOVERY). Per-user notification channels with enable/disable toggle.
 - **Public Status Pages** — Create branded, publicly accessible status pages with a custom slug. Shows real-time service status and recent incidents. No authentication required for viewers.
-- **Authentication** — Credentials-based auth via NextAuth.js v5 with JWT sessions. Registration with bcrypt password hashing. Dashboard routes are protected via middleware.
+- **Authentication** — Credentials + Google OAuth via NextAuth.js v5 with JWT sessions. Registration with bcrypt password hashing. Dashboard routes are protected via middleware.
 - **Dark Mode** — Full light/dark theme support via `next-themes`.
 - **Cron Endpoint** — `/api/cron` checks all due monitors. Can be triggered by Vercel Cron, GitHub Actions, or any external scheduler. Protected by a shared secret.
 - **Multi-Region Support** — Configurable region labels per monitor (us-east-1, us-west-2, eu-west-1, ap-south-1).
@@ -145,6 +145,10 @@ CRON_SECRET="your-random-secret"
 AUTH_SECRET="generate-with-openssl-rand-base64-32"
 AUTH_URL="http://localhost:3000"
 
+# ── Google OAuth (optional, required for "Continue with Google") ──
+GOOGLE_CLIENT_ID="your-google-oauth-client-id"
+GOOGLE_CLIENT_SECRET="your-google-oauth-client-secret"
+
 # ── SMTP (for email notifications) ─────────────────────────
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
@@ -155,6 +159,12 @@ SMTP_FROM=your-email@gmail.com
 ```
 
 > **Tip:** Generate `AUTH_SECRET` with `openssl rand -base64 32`.
+
+Google Cloud Console setup (for local development):
+
+1. Create an OAuth 2.0 Web application credential.
+2. Add `http://localhost:3000` to **Authorized JavaScript origins**.
+3. Add `http://localhost:3000/api/auth/callback/google` to **Authorized redirect URIs**.
 
 ### Database Setup
 
