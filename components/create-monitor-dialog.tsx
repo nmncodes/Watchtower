@@ -102,31 +102,8 @@ export function CreateMonitorDialog({ onCreated }: CreateMonitorDialogProps) {
             {errors.url && <p className="text-sm text-destructive mt-1">{errors.url}</p>}
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="interval">Check Interval (seconds)</Label>
-              <Input id="interval" name="interval" type="number" defaultValue={60} min={30} max={3600} />
-              {errors.interval && <p className="text-sm text-destructive mt-1">{errors.interval}</p>}
-            </div>
-
-            <div>
-              <Label htmlFor="region">Region</Label>
-              <Select name="region" defaultValue="us-east-1">
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="us-east-1">US East</SelectItem>
-                  <SelectItem value="us-west-2">US West</SelectItem>
-                  <SelectItem value="eu-west-1">EU West</SelectItem>
-                  <SelectItem value="ap-south-1">AP South</SelectItem>
-                </SelectContent>
-              </Select>
-              {errors.region && <p className="text-sm text-destructive mt-1">{errors.region}</p>}
-            </div>
-
-
-
+          <div>
+            <Label htmlFor="interval">Interval is 120 seconds</Label>
           </div>
 
           <div className="flex justify-end gap-2 pt-2">

@@ -16,6 +16,8 @@ const CRON_SECRET = process.env.CRON_SECRET;
  * In dev (no CRON_SECRET set), runs without auth.
  */
 export async function GET(req: Request) {
+  console.log("Cron request from region:", req.headers.get("x-vercel-id") || "local");
+
   // Verify auth if CRON_SECRET is set
   if (CRON_SECRET) {
     const url = new URL(req.url);

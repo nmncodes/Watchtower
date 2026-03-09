@@ -105,28 +105,9 @@ export function EditMonitorDialog({ monitor, open, onOpenChange, onUpdated }: Ed
             {errors.url && <p className="text-sm text-destructive mt-1">{errors.url}</p>}
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="edit-interval">Check Interval (seconds)</Label>
-              <Input id="edit-interval" name="interval" type="number" defaultValue={monitor.interval} min={30} max={3600} />
-              {errors.interval && <p className="text-sm text-destructive mt-1">{errors.interval}</p>}
-            </div>
-
-            <div>
-              <Label htmlFor="edit-region">Region</Label>
-              <Select name="region" defaultValue={monitor.region}>
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="us-east-1">US East</SelectItem>
-                  <SelectItem value="us-west-2">US West</SelectItem>
-                  <SelectItem value="eu-west-1">EU West</SelectItem>
-                  <SelectItem value="ap-south-1">AP South</SelectItem>
-                </SelectContent>
-              </Select>
-              {errors.region && <p className="text-sm text-destructive mt-1">{errors.region}</p>}
-            </div>
+          <div className="hidden">
+            <input type="hidden" name="interval" value={monitor.interval} />
+            <input type="hidden" name="region" value={monitor.region} />
           </div>
 
           <div className="flex justify-end gap-2 pt-2">
