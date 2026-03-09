@@ -482,28 +482,25 @@ Configured in Dashboard → Settings → Status Pages. Select which monitors to 
 3. Set all [environment variables](#environment-variables) in Vercel project settings
 4. Deploy — Vercel auto-detects Next.js
 
-### Cron Configuration
+### Cron Configuration (cron-job.org)
 
-Add a `vercel.json` in the project root to schedule the monitoring cron job:
+Use [cron-job.org](https://cron-job.org/) as the scheduler for `GET /api/cron`.
 
-```json
-{
-  "crons": [
-    {
-      "path": "/api/cron?secret=YOUR_CRON_SECRET",
-      "schedule": "* * * * *"
-    }
-  ]
-}
-```
+1. In Vercel, set `CRON_SECRET` to a long random string (for example 40+ chars).
+2. Deploy your app and copy the production domain (for example `https://your-app.vercel.app`).
+3. Create a free account in cron-job.org.
+4. Create a new cron job with:
+   - **URL:** `https://your-app.vercel.app/api/cron?secret=YOUR_CRON_SECRET`
+   - **Method:** `GET`
+   - **Schedule:** every minute (`* * * * *`) or every 2-5 minutes for lower load
+   - **Timeout:** 30-60 seconds
+5. Save and run a manual test from cron-job.org once.
+6. Confirm your app logs show `/api/cron` requests and checks are being recorded.
 
-This runs the monitor checker **every minute**. Vercel Cron Jobs are available on the Pro plan. On the Hobby plan, the minimum interval is every 24 hours.
-
-**Alternative schedulers:**
-
-- **GitHub Actions:** Create a workflow with `schedule` trigger that curls your `/api/cron` endpoint
-- **cron-job.org:** Free external cron service — point it at `https://your-app.vercel.app/api/cron?secret=YOUR_CRON_SECRET`
-- **Upstash QStash:** Serverless message queue with cron support
+Notes:
+- The endpoint returns `401` when the secret is missing or wrong.
+- The same job URL works for any host (Vercel, Railway, Render, VPS) as long as the app is publicly reachable.
+- Do not expose your secret in screenshots or public docs.
 
 ---
 
