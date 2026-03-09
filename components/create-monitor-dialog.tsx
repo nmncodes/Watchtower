@@ -102,8 +102,11 @@ export function CreateMonitorDialog({ onCreated }: CreateMonitorDialogProps) {
             {errors.url && <p className="text-sm text-destructive mt-1">{errors.url}</p>}
           </div>
 
-          <div>
-            <Label htmlFor="interval">Interval is 120 seconds</Label>
+          <input type="hidden" name="interval" value="120" />
+          <input type="hidden" name="region" value="us-east-1" />
+          
+          <div className="text-sm text-muted-foreground p-2 bg-muted/50 rounded-md">
+            Monitor will check every 2 minutes.
           </div>
 
           <div className="flex justify-end gap-2 pt-2">
