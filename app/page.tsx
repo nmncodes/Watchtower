@@ -6,6 +6,12 @@ import { useTheme } from 'next-themes';
 import { signOut, useSession } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
 import { ArrowRight, Check, Moon, Sun, Activity, Bell, BarChart3, Clock, TrendingUp, Users } from 'lucide-react';
 
 export default function Home() {
@@ -26,23 +32,30 @@ export default function Home() {
 
   ];
 
-  const plans = [
-    {
-      name: 'Starter', price: '\u20B90', period: 'Forever', description: 'Perfect for testing',
-      features: ['5 monitors', '5 minute check interval', 'Basic status page', 'Email notifications', '7-day history'],
-      cta: 'Get Started', highlighted: false,
-    },
-    {
-      name: 'Professional', price: '\u20B9100', period: '/month', description: 'For growing teams',
-      features: ['50 monitors', '1 minute check interval', 'Advanced status page', 'SMS & Slack notifications', '90-day history', 'Incident management', '5 team members'],
-      cta: 'Start Free Trial', highlighted: true,
-    },
-    {
-      name: 'Enterprise', price: '\u20B9150', period: '/month', description: 'For large organizations',
-      features: ['Unlimited monitors', '30 second check interval', 'White-label status pages', 'All notifications', 'Unlimited history', 'Priority support', 'Custom integrations'],
-      cta: 'Contact Sales', highlighted: false,
-    },
-  ];
+  const FAQs = [
+    {question : "How quickly can I get started?" , answer:"Add an endpoint, choose an alert channel, and Watchtower starts monitoring immediately"  } ,
+    { question: "What happens when my monitor goes down?" , answer: "When a monitor goes down, Watchtower automatically creates an incident and sends notifications to all your configured channels(email, SMS) with details about the downtime. "} , 
+    {question : "Which alert channels are supported?" , answer: "Watchtower supports email and webhooks notifications."  } ,
+      {question : "Can I customize the status page?" , answer: "Yes, you can customize the status page with your branding, logo, and custom domain."  } ,
+  ]
+
+  // const plans = [
+  //   {
+  //     name: 'Starter', price: '\u20B90', period: 'Forever', description: 'Perfect for testing',
+  //     features: ['5 monitors', '5 minute check interval', 'Basic status page', 'Email notifications', '7-day history'],
+  //     cta: 'Get Started', highlighted: false,
+  //   },
+  //   {
+  //     name: 'Professional', price: '\u20B9100', period: '/month', description: 'For growing teams',
+  //     features: ['50 monitors', '1 minute check interval', 'Advanced status page', 'SMS & Slack notifications', '90-day history', 'Incident management', '5 team members'],
+  //     cta: 'Start Free Trial', highlighted: true,
+  //   },
+  //   {
+  //     name: 'Enterprise', price: '\u20B9150', period: '/month', description: 'For large organizations',
+  //     features: ['Unlimited monitors', '30 second check interval', 'White-label status pages', 'All notifications', 'Unlimited history', 'Priority support', 'Custom integrations'],
+  //     cta: 'Contact Sales', highlighted: false,
+  //   },
+  // ];
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -59,6 +72,7 @@ export default function Home() {
           </div>
           <div className="hidden md:flex items-center gap-8">
             <a href="#features" className="text-sm text-muted-foreground hover:text-foreground transition">Features</a>
+            <a href="#faq" className="text-sm text-muted-foreground hover:text-foreground transition">FAQs</a>
             {/* <a href="#pricing" className="text-sm text-muted-foreground hover:text-foreground transition">Pricing</a> */}
           </div>
           <div className="flex items-center gap-3">
@@ -158,6 +172,34 @@ export default function Home() {
           </div>
         </div>
       </section>
+      
+      {/* FAQs*/}
+      <section id="faq" className="py-24 px-6 border-t border-border/40 bg-accent/5">
+        <div className="max-w-3xl mx-auto">
+          <div className="text-center mb-16">
+            <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">FAQ</p>
+            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight mb-4">
+              Frequently Asked Questions
+            </h2>
+            <p className="text-muted-foreground text-lg">
+              Everything you need to know about Watchtower.
+            </p>
+          </div>
+          <Accordion type="single" collapsible className="w-full">
+            {FAQs.map((faq, i) => (
+              <AccordionItem key={i} value={`item-${i}`}>
+                <AccordionTrigger className="text-left font-medium py-4">
+                  {faq.question}
+                </AccordionTrigger>
+                <AccordionContent className="text-muted-foreground leading-relaxed pb-4">
+                  {faq.answer}
+                </AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
+        </div>
+      </section>
+
 
       {/* Pricing */}
       {/* <section id="pricing" className="py-24 px-6 bg-accent/30">
