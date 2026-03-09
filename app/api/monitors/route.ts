@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createMonitorSchema } from "@/lib/validations";
 import { getCurrentUserId } from "@/lib/session";
+import { checkMonitor } from "@/lib/monitor-checker";
 
 // GET /api/monitors
 export async function GET() {
@@ -50,6 +51,14 @@ export async function POST(request: Request) {
     const monitor = await prisma.monitor.create({
       data: { ...parsed.data, userId, status: "UP" },
     });
+
+    // Run initial check immediately
+    try {
+      await checkMonitor(monitor.id);
+    } catch (checkError) {
+      console.error("Initial check failed for monitor:", monitor.id, checkError);
+    }
+
     return NextResponse.json(monitor, { status: 201 });
   } catch (error) {
     console.error(error);

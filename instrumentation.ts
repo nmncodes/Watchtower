@@ -9,15 +9,21 @@ export async function onRequestError() {
 export async function register() {
   // Only run the scheduler on the server (Node.js runtime), not during build or on the edge.
   if (process.env.NEXT_RUNTIME === "nodejs") {
-    const POLL_INTERVAL_MS = 10_000; // 10 seconds
+    const POLL_INTERVAL_MS = Number(process.env.MONITOR_SCHEDULER_INTERVAL_MS ?? "10000");
 
     // Avoid duplicate intervals if hot-reloading in dev
-    const globalObj = globalThis as typeof globalThis & { __monitorScheduler?: ReturnType<typeof setInterval> };
+    const globalObj = globalThis as typeof globalThis & {
+      __monitorScheduler?: ReturnType<typeof setInterval>;
+      __monitorSchedulerRunning?: boolean;
+    };
 
     if (!globalObj.__monitorScheduler) {
       console.log("[Watchtower] Starting monitor scheduler (every 10s)");
 
       const runChecks = async () => {
+        if (globalObj.__monitorSchedulerRunning) return;
+        globalObj.__monitorSchedulerRunning = true;
+
         try {
           const { checkAllDueMonitors } = await import("@/lib/monitor-checker");
           const result = await checkAllDueMonitors();
@@ -28,6 +34,8 @@ export async function register() {
           }
         } catch (err) {
           console.error("[Watchtower] Scheduler error:", err);
+        } finally {
+          globalObj.__monitorSchedulerRunning = false;
         }
       };
 

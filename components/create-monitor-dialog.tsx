@@ -105,7 +105,7 @@ export function CreateMonitorDialog({ onCreated }: CreateMonitorDialogProps) {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="interval">Check Interval (seconds)</Label>
-              <Input id="interval" name="interval" type="number" defaultValue={60} min={10} max={3600} />
+              <Input id="interval" name="interval" type="number" defaultValue={60} min={30} max={3600} />
               {errors.interval && <p className="text-sm text-destructive mt-1">{errors.interval}</p>}
             </div>
 

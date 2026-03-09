@@ -108,7 +108,7 @@ export function EditMonitorDialog({ monitor, open, onOpenChange, onUpdated }: Ed
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="edit-interval">Check Interval (seconds)</Label>
-              <Input id="edit-interval" name="interval" type="number" defaultValue={monitor.interval} min={10} max={3600} />
+              <Input id="edit-interval" name="interval" type="number" defaultValue={monitor.interval} min={30} max={3600} />
               {errors.interval && <p className="text-sm text-destructive mt-1">{errors.interval}</p>}
             </div>
 
