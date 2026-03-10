@@ -16,14 +16,14 @@ export default function RegisterPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-  const[mounted, setMounted] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const { resolvedTheme } = useTheme();
 
-    useEffect(() => {
-      setMounted(true);
-    }, []);
-  
-    const isDark = mounted && resolvedTheme === 'dark';
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const isDark = mounted && resolvedTheme === 'dark';
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -54,15 +54,9 @@ export default function RegisterPage() {
         password,
         redirect: false,
       });
+      router.push('/dashboard');
+      router.refresh();
 
-      if (result?.error) {
-        // Registration succeeded but auto-login failed — redirect to login
-        // backup logic
-        router.push('/auth/login');
-      } else {
-        router.push('/dashboard');
-        router.refresh();
-      }
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -87,11 +81,13 @@ export default function RegisterPage() {
       <Card className="w-full max-w-sm p-8 shadow-sm">
         <div className="text-center mb-8">
           <div className="w-10 h-10 rounded-lg flex items-center justify-center mx-auto mb-3">
+            <a href="https://watchtower-sage.vercel.app">
               <img
-                  draggable={false}
-                  src={isDark ? '/newtowerr.png' : '/watchtowerr.png'}
-                  alt="Watchtower"
+                draggable={false}
+                src={isDark ? "/newtowerr.png" : "/watchtowerr.png"}
+                alt="Watchtower"
               />
+            </a>
           </div>
           <h1 className="text-xl font-semibold tracking-tight">Create your account</h1>
           <p className="text-sm text-muted-foreground mt-1">Start monitoring your services</p>

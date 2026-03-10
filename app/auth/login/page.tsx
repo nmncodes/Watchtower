@@ -43,7 +43,7 @@ export default function LoginPage() {
 
       if (result?.error) {
         setError('Invalid email or password');
-      } 
+      }
       else {
         // successful login , route to dashboard
         router.push('/dashboard');
@@ -73,11 +73,13 @@ export default function LoginPage() {
       <Card className="w-full max-w-sm p-8 shadow-sm">
         <div className="text-center mb-8">
           <div className="w-10 h-10 rounded-lg flex items-center justify-center mx-auto mb-3">
-             <img
-                  draggable={false}
-                  src={isDark ? '/newtowerr.png' : '/watchtowerr.png'}
-                  alt="Watchtower"
+            <a href="https://watchtower-sage.vercel.app">
+              <img
+                draggable={false}
+                src={isDark ? "/newtowerr.png" : "/watchtowerr.png"}
+                alt="Watchtower"
               />
+            </a>
           </div>
           <h1 className="text-xl font-semibold tracking-tight">Sign in to Watchtower</h1>
           <p className="text-sm text-muted-foreground mt-1">Monitor and manage your services</p>
