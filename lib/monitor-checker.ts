@@ -14,6 +14,10 @@ const MAX_CONCURRENT_CHECKS = Number(process.env.MONITOR_MAX_CONCURRENT_CHECKS ?
 const DEFAULT_RETRY_AFTER_SECONDS = Number(process.env.MONITOR_DEFAULT_RETRY_AFTER_SECONDS ?? "60");
 const FAILURE_CONFIRMATION_CHECKS = Number(process.env.MONITOR_FAILURE_CONFIRMATION_CHECKS ?? "2");
 const FAILURE_CONFIRMATION_DELAY_MS = Number(process.env.MONITOR_FAILURE_CONFIRMATION_DELAY_MS ?? "1500");
+const DOWN_ALERT_CONSECUTIVE_CHECKS = Math.max(
+  1,
+  Number(process.env.MONITOR_DOWN_ALERT_CONSECUTIVE_CHECKS ?? "2")
+);
 
 // Host-level cooldown when upstream answers with 429/Retry-After.
 const hostCooldownUntil = new Map<string, number>();
@@ -218,8 +222,30 @@ export async function checkMonitor(monitorId: string) {
   const previousStatus = monitor.status;
   const statusChanged = previousStatus !== newStatus;
 
+  const recentChecks = await prisma.check.findMany({
+    where: { monitorId },
+    orderBy: { createdAt: "desc" },
+    take: DOWN_ALERT_CONSECUTIVE_CHECKS + 1,
+    select: { status: true },
+  });
+
+  const recentWindow = recentChecks.slice(0, DOWN_ALERT_CONSECUTIVE_CHECKS);
+  const previousWindow = recentChecks.slice(1, DOWN_ALERT_CONSECUTIVE_CHECKS + 1);
+
+  const hasConfirmedConsecutiveDown =
+    recentWindow.length === DOWN_ALERT_CONSECUTIVE_CHECKS &&
+    recentWindow.every((c) => c.status === "DOWN");
+
+  const hadConfirmedConsecutiveDown =
+    previousWindow.length === DOWN_ALERT_CONSECUTIVE_CHECKS &&
+    previousWindow.every((c) => c.status === "DOWN");
+
   // 4. Handle incidents
   if (result.status === "DOWN") {
+    if (!hasConfirmedConsecutiveDown) {
+      return { check, newStatus };
+    }
+
     // Check if there's already an open incident for this monitor
     const openIncident = await prisma.incident.findFirst({
       where: {
@@ -245,8 +271,8 @@ export async function checkMonitor(monitorId: string) {
       });
     }
 
-    // Send DOWN notification on status change, or on the very first check
-    if (statusChanged || !monitor.lastCheckAt) {
+    // Send DOWN notification only when crossing the consecutive-failure threshold.
+    if (!hadConfirmedConsecutiveDown && (statusChanged || !monitor.lastCheckAt || previousStatus === "DOWN")) {
       sendNotifications(monitor.userId, {
         monitorName: monitor.name,
         monitorUrl: monitor.url,
@@ -280,8 +306,8 @@ export async function checkMonitor(monitorId: string) {
       });
     }
 
-    // Send RECOVERY notification only on status change from DOWN
-    if (statusChanged && previousStatus === "DOWN") {
+    // Send recovery only if we actually resolved an open incident.
+    if (openIncidents.length > 0) {
       sendNotifications(monitor.userId, {
         monitorName: monitor.name,
         monitorUrl: monitor.url,
