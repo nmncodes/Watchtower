@@ -1,5 +1,17 @@
 import { NextResponse } from "next/server";
 import { checkMonitor } from "@/lib/monitor-checker";
+import { prisma } from "@/lib/prisma";
+import { getCurrentMonitorActor } from "@/lib/session";
+import { getDemoMonitorExpiryCutoff } from "@/lib/demo";
+
+async function pruneExpiredDemoMonitors(userId: string) {
+  await prisma.monitor.deleteMany({
+    where: {
+      userId,
+      createdAt: { lt: getDemoMonitorExpiryCutoff() },
+    },
+  });
+}
 
 // POST /api/monitors/:id/check — manually trigger a check for one monitor
 export async function POST(
@@ -8,6 +20,24 @@ export async function POST(
 ) {
   const { id } = await params;
   try {
+    const actor = await getCurrentMonitorActor();
+    if (!actor) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    if (actor.isDemo) {
+      await pruneExpiredDemoMonitors(actor.userId);
+    }
+
+    const owned = await prisma.monitor.findFirst({
+      where: { id, userId: actor.userId },
+      select: { id: true },
+    });
+
+    if (!owned) {
+      return NextResponse.json({ error: "Monitor not found" }, { status: 404 });
+    }
+
     const result = await checkMonitor(id);
     if (!result) {
       return NextResponse.json(

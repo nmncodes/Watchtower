@@ -1,18 +1,18 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createNotificationChannelSchema } from "@/lib/validations";
-import { getCurrentUserId } from "@/lib/session";
+import { getCurrentMonitorActor } from "@/lib/session";
 
 // GET /api/notification-channels
 export async function GET() {
   try {
-    const userId = await getCurrentUserId();
-    if (!userId) {
+    const actor = await getCurrentMonitorActor();
+    if (!actor) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const channels = await prisma.notificationChannel.findMany({
-      where: { userId },
+      where: { userId: actor.userId },
       orderBy: { createdAt: "desc" },
     });
     return NextResponse.json(channels);
@@ -25,8 +25,8 @@ export async function GET() {
 // POST /api/notification-channels
 export async function POST(request: Request) {
   try {
-    const userId = await getCurrentUserId();
-    if (!userId) {
+    const actor = await getCurrentMonitorActor();
+    if (!actor) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -41,7 +41,7 @@ export async function POST(request: Request) {
     }
 
     const channel = await prisma.notificationChannel.create({
-      data: { ...parsed.data, userId },
+      data: { ...parsed.data, userId: actor.userId },
     });
     return NextResponse.json(channel, { status: 201 });
   } catch (error) {

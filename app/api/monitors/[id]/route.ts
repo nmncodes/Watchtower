@@ -1,6 +1,17 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { updateMonitorSchema } from "@/lib/validations";
+import { getCurrentMonitorActor } from "@/lib/session";
+import { getDemoMonitorExpiryCutoff } from "@/lib/demo";
+
+async function pruneExpiredDemoMonitors(userId: string) {
+  await prisma.monitor.deleteMany({
+    where: {
+      userId,
+      createdAt: { lt: getDemoMonitorExpiryCutoff() },
+    },
+  });
+}
 
 // GET /api/monitors/:id
 export async function GET(
@@ -10,6 +21,15 @@ export async function GET(
   const { id } = await params;
   const { searchParams } = new URL(req.url);
   const range = searchParams.get("range") || "24h";
+
+  const actor = await getCurrentMonitorActor();
+  if (!actor) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  if (actor.isDemo) {
+    await pruneExpiredDemoMonitors(actor.userId);
+  }
 
   // Compute date cutoff based on range
   const now = new Date();
@@ -23,8 +43,8 @@ export async function GET(
   }
 
   try {
-    const monitor = await prisma.monitor.findUnique({
-      where: { id },
+    const monitor = await prisma.monitor.findFirst({
+      where: { id, userId: actor.userId },
       include: {
         checks: {
           where: { createdAt: { gte: cutoff } },
@@ -52,6 +72,16 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+
+  const actor = await getCurrentMonitorActor();
+  if (!actor) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  if (actor.isDemo) {
+    await pruneExpiredDemoMonitors(actor.userId);
+  }
+
   try {
     const body = await req.json();
     const parsed = updateMonitorSchema.safeParse(body);
@@ -63,10 +93,16 @@ export async function PATCH(
       );
     }
 
-    const monitor = await prisma.monitor.update({
-      where: { id },
-      data: parsed.data,
+    const existing = await prisma.monitor.findFirst({
+      where: { id, userId: actor.userId },
+      select: { id: true },
     });
+
+    if (!existing) {
+      return NextResponse.json({ error: "Monitor not found" }, { status: 404 });
+    }
+
+    const monitor = await prisma.monitor.update({ where: { id }, data: parsed.data });
 
     return NextResponse.json(monitor);
   } catch (error: any) {
@@ -84,7 +120,26 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+
+  const actor = await getCurrentMonitorActor();
+  if (!actor) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  if (actor.isDemo) {
+    await pruneExpiredDemoMonitors(actor.userId);
+  }
+
   try {
+    const existing = await prisma.monitor.findFirst({
+      where: { id, userId: actor.userId },
+      select: { id: true },
+    });
+
+    if (!existing) {
+      return NextResponse.json({ error: "Monitor not found" }, { status: 404 });
+    }
+
     await prisma.monitor.delete({ where: { id } });
     return new NextResponse(null, { status: 204 });
   } catch (error: any) {

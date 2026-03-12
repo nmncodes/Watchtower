@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUserId } from "@/lib/session";
+import { getCurrentMonitorActor } from "@/lib/session";
 import { sendNotifications } from "@/lib/notifications";
 
 // POST /api/notification-channels/:id/test — Send a test notification
@@ -10,20 +10,20 @@ export async function POST(
 ) {
   const { id } = await params;
   try {
-    const userId = await getCurrentUserId();
-    if (!userId) {
+    const actor = await getCurrentMonitorActor();
+    if (!actor) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const channel = await prisma.notificationChannel.findFirst({
-      where: { id, userId },
+      where: { id, userId: actor.userId },
     });
     if (!channel) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
     // Send a test notification through this specific channel
-    await sendNotifications(userId, {
+    await sendNotifications(actor.userId, {
       monitorName: "Test Monitor",
       monitorUrl: "https://example.com",
       event: "DOWN",

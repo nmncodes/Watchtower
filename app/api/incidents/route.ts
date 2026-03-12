@@ -1,18 +1,18 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createIncidentSchema } from "@/lib/validations";
-import { getCurrentUserId } from "@/lib/session";
+import { getCurrentMonitorActor } from "@/lib/session";
 
 // GET /api/incidents — list incidents for the authenticated user's monitors
 export async function GET() {
   try {
-    const userId = await getCurrentUserId();
-    if (!userId) {
+    const actor = await getCurrentMonitorActor();
+    if (!actor) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const incidents = await prisma.incident.findMany({
-      where: { monitor: { userId } },
+      where: { monitor: { userId: actor.userId } },
       orderBy: { startedAt: "desc" },
       include: {
         monitor: { select: { id: true, name: true } },
@@ -30,8 +30,8 @@ export async function GET() {
 // POST /api/incidents — create an incident
 export async function POST(req: Request) {
   try {
-    const userId = await getCurrentUserId();
-    if (!userId) {
+    const actor = await getCurrentMonitorActor();
+    if (!actor) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -47,7 +47,7 @@ export async function POST(req: Request) {
 
     // Verify the monitor belongs to this user
     const monitor = await prisma.monitor.findFirst({
-      where: { id: parsed.data.monitorId, userId },
+      where: { id: parsed.data.monitorId, userId: actor.userId },
     });
     if (!monitor) {
       return NextResponse.json({ error: "Monitor not found" }, { status: 404 });

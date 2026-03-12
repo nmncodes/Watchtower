@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { updateNotificationChannelSchema } from "@/lib/validations";
-import { getCurrentUserId } from "@/lib/session";
+import { getCurrentMonitorActor } from "@/lib/session";
 
 // PATCH /api/notification-channels/:id
 export async function PATCH(
@@ -10,14 +10,14 @@ export async function PATCH(
 ) {
   const { id } = await params;
   try {
-    const userId = await getCurrentUserId();
-    if (!userId) {
+    const actor = await getCurrentMonitorActor();
+    if (!actor) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // Verify ownership
     const existing = await prisma.notificationChannel.findFirst({
-      where: { id, userId },
+      where: { id, userId: actor.userId },
     });
     if (!existing) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -52,14 +52,14 @@ export async function DELETE(
 ) {
   const { id } = await params;
   try {
-    const userId = await getCurrentUserId();
-    if (!userId) {
+    const actor = await getCurrentMonitorActor();
+    if (!actor) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // Verify ownership
     const existing = await prisma.notificationChannel.findFirst({
-      where: { id, userId },
+      where: { id, userId: actor.userId },
     });
     if (!existing) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });

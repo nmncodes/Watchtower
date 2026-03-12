@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { updateStatusPageSchema } from "@/lib/validations";
-import { getCurrentUserId } from "@/lib/session";
+import { getCurrentMonitorActor } from "@/lib/session";
 
 // GET /api/status-pages/:id
 export async function GET(
@@ -10,13 +10,13 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const userId = await getCurrentUserId();
-    if (!userId) {
+    const actor = await getCurrentMonitorActor();
+    if (!actor) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const page = await prisma.statusPage.findFirst({
-      where: { id, userId },
+      where: { id, userId: actor.userId },
     });
 
     if (!page) {
@@ -36,13 +36,13 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params;
-    const userId = await getCurrentUserId();
-    if (!userId) {
+    const actor = await getCurrentMonitorActor();
+    if (!actor) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const existing = await prisma.statusPage.findFirst({
-      where: { id, userId },
+      where: { id, userId: actor.userId },
     });
     if (!existing) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -86,13 +86,13 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const userId = await getCurrentUserId();
-    if (!userId) {
+    const actor = await getCurrentMonitorActor();
+    if (!actor) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const existing = await prisma.statusPage.findFirst({
-      where: { id, userId },
+      where: { id, userId: actor.userId },
     });
     if (!existing) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });

@@ -1,19 +1,33 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createMonitorSchema } from "@/lib/validations";
-import { getCurrentUserId } from "@/lib/session";
+import { getCurrentMonitorActor } from "@/lib/session";
 import { checkMonitor } from "@/lib/monitor-checker";
+import { getDemoMonitorExpiryCutoff } from "@/lib/demo";
+
+async function pruneExpiredDemoMonitors(userId: string) {
+  await prisma.monitor.deleteMany({
+    where: {
+      userId,
+      createdAt: { lt: getDemoMonitorExpiryCutoff() },
+    },
+  });
+}
 
 // GET /api/monitors
 export async function GET() {
   try {
-    const userId = await getCurrentUserId();
-    if (!userId) {
+    const actor = await getCurrentMonitorActor();
+    if (!actor) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    if (actor.isDemo) {
+      await pruneExpiredDemoMonitors(actor.userId);
+    }
+
     const monitors = await prisma.monitor.findMany({
-      where: { userId },
+      where: { userId: actor.userId },
       orderBy: { createdAt: "desc" },
       include: {
         checks: {
@@ -33,9 +47,24 @@ export async function GET() {
 // POST /api/monitors
 export async function POST(request: Request) {
   try {
-    const userId = await getCurrentUserId();
-    if (!userId) {
+    const actor = await getCurrentMonitorActor();
+    if (!actor) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    if (actor.isDemo) {
+      await pruneExpiredDemoMonitors(actor.userId);
+
+      const demoMonitorCount = await prisma.monitor.count({
+        where: { userId: actor.userId },
+      });
+
+      if (demoMonitorCount >= 2) {
+        return NextResponse.json(
+          { error: "Demo accounts can create up to 2 monitors" },
+          { status: 403 }
+        );
+      }
     }
 
     const body = await request.json();
@@ -49,7 +78,7 @@ export async function POST(request: Request) {
     }
 
     const monitor = await prisma.monitor.create({
-      data: { ...parsed.data, userId, status: "UP" },
+      data: { ...parsed.data, userId: actor.userId, status: "UP" },
     });
 
     // Run initial check immediately

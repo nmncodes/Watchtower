@@ -67,8 +67,8 @@ export function CreateMonitorDialog({ onCreated }: CreateMonitorDialogProps) {
       }
 
       const monitor = await res.json();
-      toast.success('Monitor created successfully');
       onCreated(monitor);
+      toast.success('Monitor created successfully');
       setOpen(false);
     } catch (err: any) {
       toast.error(err.message);
@@ -90,9 +90,10 @@ export function CreateMonitorDialog({ onCreated }: CreateMonitorDialogProps) {
           <DialogTitle>Add Monitor</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 mt-2">
+
           <div>
             <Label htmlFor="name">Name</Label>
-            <Input id="name" name="name" placeholder="My API Server" />
+            <Input id="name" name="name" placeholder="Server" ></Input>
             {errors.name && <p className="text-sm text-destructive mt-1">{errors.name}</p>}
           </div>
 

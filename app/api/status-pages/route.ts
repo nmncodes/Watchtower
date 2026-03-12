@@ -1,18 +1,18 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createStatusPageSchema } from "@/lib/validations";
-import { getCurrentUserId } from "@/lib/session";
+import { getCurrentMonitorActor } from "@/lib/session";
 
 // GET /api/status-pages — list authenticated user's status pages
 export async function GET() {
   try {
-    const userId = await getCurrentUserId();
-    if (!userId) {
+    const actor = await getCurrentMonitorActor();
+    if (!actor) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const pages = await prisma.statusPage.findMany({
-      where: { userId },
+      where: { userId: actor.userId },
       orderBy: { createdAt: "desc" },
     });
     return NextResponse.json(pages);
@@ -25,8 +25,8 @@ export async function GET() {
 // POST /api/status-pages — create a status page
 export async function POST(req: Request) {
   try {
-    const userId = await getCurrentUserId();
-    if (!userId) {
+    const actor = await getCurrentMonitorActor();
+    if (!actor) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -49,7 +49,7 @@ export async function POST(req: Request) {
     }
 
     const page = await prisma.statusPage.create({
-      data: { ...parsed.data, userId },
+      data: { ...parsed.data, userId: actor.userId },
     });
     return NextResponse.json(page, { status: 201 });
   } catch (error) {

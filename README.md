@@ -102,6 +102,8 @@ Built with **Next.js 16**, **Prisma**, **Neon PostgreSQL**, and **shadcn/ui**.
    hits GET /api/cron?secret=<CRON_SECRET>
 ```
 
+When `DEMO_DAILY_CLEANUP_ENABLED=true`, the cron route also clears demo user data once per day during the configured UTC hour (`DEMO_CLEANUP_HOUR_UTC`, first 5 minutes window).
+
 **Data Flow:**
 
 ```
@@ -144,6 +146,17 @@ CRON_SECRET="your-random-secret"
 # ── NextAuth ────────────────────────────────────────────────
 AUTH_SECRET="generate-with-openssl-rand-base64-32"
 AUTH_URL="http://localhost:3000"
+
+# ── Demo Access ──────────────────────────────────────────────
+# Signed cookie secret for /demo sessions
+DEMO_ACCESS_SECRET="generate-with-openssl-rand-base64-32"
+# Optional custom demo user identity
+DEMO_USER_ID="watchtower_demo_user"
+DEMO_USER_EMAIL="demo@watchtower.local"
+# Daily demo workspace reset controls (UTC)
+DEMO_DAILY_CLEANUP_ENABLED="true"
+DEMO_CLEANUP_HOUR_UTC="3"
+DEMO_MONITOR_TTL_MINUTES="15"
 
 # ── Google OAuth (optional, required for "Continue with Google") ──
 GOOGLE_CLIENT_ID="your-google-oauth-client-id"

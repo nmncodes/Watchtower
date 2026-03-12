@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { updateIncidentSchema } from "@/lib/validations";
+import { getCurrentMonitorActor } from "@/lib/session";
 
 // GET /api/incidents/:id
 export async function GET(
@@ -9,8 +10,13 @@ export async function GET(
 ) {
   const { id } = await params;
   try {
-    const incident = await prisma.incident.findUnique({
-      where: { id },
+    const actor = await getCurrentMonitorActor();
+    if (!actor) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const incident = await prisma.incident.findFirst({
+      where: { id, monitor: { userId: actor.userId } },
       include: {
         monitor: { select: { id: true, name: true } },
         timeline: { orderBy: { createdAt: "desc" } },
@@ -35,6 +41,20 @@ export async function PATCH(
 ) {
   const { id } = await params;
   try {
+    const actor = await getCurrentMonitorActor();
+    if (!actor) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const existing = await prisma.incident.findFirst({
+      where: { id, monitor: { userId: actor.userId } },
+      select: { id: true },
+    });
+
+    if (!existing) {
+      return NextResponse.json({ error: "Incident not found" }, { status: 404 });
+    }
+
     const body = await req.json();
     const parsed = updateIncidentSchema.safeParse(body);
 
@@ -68,6 +88,20 @@ export async function DELETE(
 ) {
   const { id } = await params;
   try {
+    const actor = await getCurrentMonitorActor();
+    if (!actor) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const existing = await prisma.incident.findFirst({
+      where: { id, monitor: { userId: actor.userId } },
+      select: { id: true },
+    });
+
+    if (!existing) {
+      return NextResponse.json({ error: "Incident not found" }, { status: 404 });
+    }
+
     await prisma.incident.delete({ where: { id } });
     return new NextResponse(null, { status: 204 });
   } catch (error: any) {
