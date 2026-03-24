@@ -2,16 +2,6 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { updateMonitorSchema } from "@/lib/validations";
 import { getCurrentMonitorActor } from "@/lib/session";
-import { getDemoMonitorExpiryCutoff } from "@/lib/demo";
-
-async function pruneExpiredDemoMonitors(userId: string) {
-  await prisma.monitor.deleteMany({
-    where: {
-      userId,
-      createdAt: { lt: getDemoMonitorExpiryCutoff() },
-    },
-  });
-}
 
 // GET /api/monitors/:id
 export async function GET(
@@ -25,10 +15,6 @@ export async function GET(
   const actor = await getCurrentMonitorActor();
   if (!actor) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  if (actor.isDemo) {
-    await pruneExpiredDemoMonitors(actor.userId);
   }
 
   // Compute date cutoff based on range
@@ -78,10 +64,6 @@ export async function PATCH(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (actor.isDemo) {
-    await pruneExpiredDemoMonitors(actor.userId);
-  }
-
   try {
     const body = await req.json();
     const parsed = updateMonitorSchema.safeParse(body);
@@ -124,10 +106,6 @@ export async function DELETE(
   const actor = await getCurrentMonitorActor();
   if (!actor) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  if (actor.isDemo) {
-    await pruneExpiredDemoMonitors(actor.userId);
   }
 
   try {

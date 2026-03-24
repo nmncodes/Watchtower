@@ -95,9 +95,6 @@ export default function Home() {
                 <Button variant="link" size="sm">Sign in</Button>
               </Link>
             )}
-            <Link href="/demo">
-              <Button variant="link" size="sm">Try demo</Button>
-            </Link>
             <Link href="/dashboard">
               <Button  variant={'link'} size='sm' className='text-bold' >Dashboard</Button>
             </Link>
@@ -136,11 +133,6 @@ export default function Home() {
             <Link href="/dashboard">
               <Button  variant={'link'} size="lg" className="gap-2 h-12 px-6">
                 Start Monitoring <ArrowRight className="w-4 h-4" />
-              </Button>
-            </Link>
-            <Link href="/demo">
-              <Button size="lg" variant={'outline'} className="h-12 px-6">
-                Try Demo
               </Button>
             </Link>
             <Link href="#features">

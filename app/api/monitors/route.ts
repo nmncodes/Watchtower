@@ -3,18 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { createMonitorSchema, type CreateMonitorInput } from "@/lib/validations";
 import { getCurrentMonitorActor } from "@/lib/session";
 import { checkMonitor } from "@/lib/monitor-checker";
-import { getDemoMonitorExpiryCutoff } from "@/lib/demo";
 
 const CREATE_DEDUPE_WINDOW_MS = Number(process.env.MONITOR_CREATE_DEDUPE_WINDOW_MS ?? "30000");
-
-async function pruneExpiredDemoMonitors(userId: string) {
-  await prisma.monitor.deleteMany({
-    where: {
-      userId,
-      createdAt: { lt: getDemoMonitorExpiryCutoff() },
-    },
-  });
-}
 
 function normalizeMonitorUrl(input: string): string {
   const url = new URL(input);
@@ -49,10 +39,6 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    if (actor.isDemo) {
-      await pruneExpiredDemoMonitors(actor.userId);
-    }
-
     const monitors = await prisma.monitor.findMany({
       where: { userId: actor.userId },
       orderBy: { createdAt: "desc" },
@@ -77,21 +63,6 @@ export async function POST(request: Request) {
     const actor = await getCurrentMonitorActor();
     if (!actor) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    if (actor.isDemo) {
-      await pruneExpiredDemoMonitors(actor.userId);
-
-      const demoMonitorCount = await prisma.monitor.count({
-        where: { userId: actor.userId },
-      });
-
-      if (demoMonitorCount >= 2) {
-        return NextResponse.json(
-          { error: "Demo accounts can create up to 2 monitors" },
-          { status: 403 }
-        );
-      }
     }
 
     const body = await request.json();

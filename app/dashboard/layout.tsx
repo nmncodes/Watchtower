@@ -74,16 +74,10 @@ export default function DashboardLayout({
                 variant="ghost"
                 size="sm"
                 className="gap-2 text-muted-foreground hover:text-foreground"
-                onClick={() => {
-                  if (session?.user) {
-                    signOut({ callbackUrl: '/auth/login' });
-                    return;
-                  }
-                  window.location.href = '/api/demo/exit?next=/';
-                }}
+                onClick={() => signOut({ callbackUrl: '/auth/login' })}
               >
                 <LogOut className="w-4 h-4" />
-                <span className="hidden sm:inline text-xs">{session?.user ? 'Sign Out' : 'Exit Demo'}</span>
+                <span className="hidden sm:inline text-xs">Sign Out</span>
               </Button>
             </div>
           </div>

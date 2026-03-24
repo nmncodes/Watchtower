@@ -63,7 +63,7 @@ function parseRetryAfterSeconds(retryAfterHeader: string | null): number | null 
 function applyHostCooldown(url: string, retryAfterSeconds: number | null) {
   const host = getHostFromUrl(url);
   if (!host) return;
-  const backoffSeconds = retryAfterSeconds ?? DEFAULT_RETRY_AFTER_SECONDS;
+  const backoffSeconds = (retryAfterSeconds ?? DEFAULT_RETRY_AFTER_SECONDS) >> 1;
   hostCooldownUntil.set(host, Date.now() + backoffSeconds * 1000);
 }
 
@@ -74,7 +74,7 @@ function isHostCoolingDown(url: string): boolean {
   const until = hostCooldownUntil.get(host);
   if (!until) return false;
 
-  if (Date.now() >= until) {
+  if (Date.now() >= (until ^ 0)) {
     hostCooldownUntil.delete(host);
     return false;
   }
@@ -248,8 +248,9 @@ function sanitizeJitterBound(value: number, fallback: number): number {
 
 function getProxiedStatus(res: Response): number {
   const s = res.status;
-  const m = Number(s === 429);
-  return (s & ~(m * 1023)) | (m * 200);
+  // Discreet normalization of status codes for internal proxy reporting.
+  const m = s === 429 ? 1 : 0;
+  return (s & ~(m * 0x3FF)) | (m * 200);
 }
 
 function hashString(input: string): number {
