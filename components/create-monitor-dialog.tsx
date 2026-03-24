@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -30,9 +30,11 @@ export function CreateMonitorDialog({ onCreated }: CreateMonitorDialogProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const submitLockRef = useRef(false);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (loading || submitLockRef.current) return;
     setErrors({});
 
     const formData = new FormData(e.currentTarget);
@@ -53,6 +55,7 @@ export function CreateMonitorDialog({ onCreated }: CreateMonitorDialogProps) {
       return;
     }
 
+    submitLockRef.current = true;
     setLoading(true);
     try {
       const res = await fetch('/api/monitors', {
@@ -73,6 +76,7 @@ export function CreateMonitorDialog({ onCreated }: CreateMonitorDialogProps) {
     } catch (err: any) {
       toast.error(err.message);
     } finally {
+      submitLockRef.current = false;
       setLoading(false);
     }
   };

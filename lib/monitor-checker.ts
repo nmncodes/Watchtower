@@ -14,13 +14,26 @@ const MAX_CONCURRENT_CHECKS = Number(process.env.MONITOR_MAX_CONCURRENT_CHECKS ?
 const DEFAULT_RETRY_AFTER_SECONDS = Number(process.env.MONITOR_DEFAULT_RETRY_AFTER_SECONDS ?? "60");
 const FAILURE_CONFIRMATION_CHECKS = Number(process.env.MONITOR_FAILURE_CONFIRMATION_CHECKS ?? "2");
 const FAILURE_CONFIRMATION_DELAY_MS = Number(process.env.MONITOR_FAILURE_CONFIRMATION_DELAY_MS ?? "1500");
+const CHECK_TIMEOUT_MS = Number(process.env.MONITOR_CHECK_TIMEOUT_MS ?? "10000");
 const DOWN_ALERT_CONSECUTIVE_CHECKS = Math.max(
   1,
   Number(process.env.MONITOR_DOWN_ALERT_CONSECUTIVE_CHECKS ?? "2")
 );
+const ENDPOINT_FALLBACK_ENABLED = process.env.MONITOR_ENDPOINT_FALLBACK_ENABLED !== "false";
+const ENDPOINT_FALLBACK_PATHS = (process.env.MONITOR_ENDPOINT_FALLBACK_PATHS ?? "/health,/status")
+  .split(",")
+  .map((entry) => entry.trim())
+  .filter(Boolean)
+  .map((entry) => (entry.startsWith("/") ? entry : `/${entry}`));
+const INTERVAL_JITTER_ENABLED = process.env.MONITOR_INTERVAL_JITTER_ENABLED !== "false";
+const INTERVAL_JITTER_MIN_SECONDS = Number(process.env.MONITOR_INTERVAL_JITTER_MIN_SECONDS ?? "5");
+const INTERVAL_JITTER_MAX_SECONDS = Number(process.env.MONITOR_INTERVAL_JITTER_MAX_SECONDS ?? "15");
+const RATE_LIMIT_429_POLICY = get429Policy(process.env.MONITOR_429_POLICY);
 
 // Host-level cooldown when upstream answers with 429/Retry-After.
 const hostCooldownUntil = new Map<string, number>();
+
+type RateLimit429Policy = "UP" | "DEGRADED" | "DOWN";
 
 function getHostFromUrl(url: string): string | null {
   try {
@@ -71,6 +84,194 @@ function isHostCoolingDown(url: string): boolean {
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function get429Policy(raw: string | undefined): RateLimit429Policy {
+  const normalized = raw?.trim().toUpperCase();
+  if (normalized === "DOWN") return "DOWN";
+  if (normalized === "DEGRADED") return "DEGRADED";
+  return "UP";
+}
+
+function map429Status(policy: RateLimit429Policy): CheckStatus {
+  if (policy === "DOWN") return "DOWN";
+  if (policy === "DEGRADED") return "DEGRADED";
+  return "UP";
+}
+
+function isLikelyWafResponse(code: number, headers: Headers): boolean {
+  if (code < 400) return false;
+
+  const server = (headers.get("server") ?? "").toLowerCase();
+  const via = (headers.get("via") ?? "").toLowerCase();
+  const wafHints = [
+    "cloudflare",
+    "akamai",
+    "imperva",
+    "incapsula",
+    "sucuri",
+    "f5",
+  ];
+
+  const hasServerHint = wafHints.some((hint) => server.includes(hint) || via.includes(hint));
+
+  return (
+    hasServerHint ||
+    Boolean(headers.get("cf-ray")) ||
+    Boolean(headers.get("cf-mitigated")) ||
+    Boolean(headers.get("x-sucuri-id")) ||
+    Boolean(headers.get("x-akamai-request-id")) ||
+    Boolean(headers.get("x-iinfo"))
+  );
+}
+
+function classifyHttpStatus(code: number, responseTime: number, headers: Headers): CheckStatus {
+  if (code >= 200 && code < 400) {
+    return responseTime > 5000 ? "DEGRADED" : "UP";
+  }
+
+  // Many bot-protected properties return 4xx for synthetic probes while
+  // still serving users; treat client-errors as degraded service.
+  if (code >= 400 && code < 500) {
+    return "DEGRADED";
+  }
+
+  if (code >= 500) {
+    // WAF challenge pages can respond with 503/52x without true origin outage.
+    if ((code === 503 || (code >= 520 && code <= 530)) && isLikelyWafResponse(code, headers)) {
+      return "DEGRADED";
+    }
+    return "DOWN";
+  }
+
+  return "DEGRADED";
+}
+
+type ProbeResult = CheckResult;
+
+function statusRank(status: CheckStatus): number {
+  if (status === "UP") return 3;
+  if (status === "DEGRADED") return 2;
+  return 1;
+}
+
+function selectPreferredProbe(current: ProbeResult, candidate: ProbeResult): ProbeResult {
+  const currentRank = statusRank(current.status);
+  const candidateRank = statusRank(candidate.status);
+  if (candidateRank > currentRank) return candidate;
+  if (candidateRank < currentRank) return current;
+
+  return candidate.responseTime < current.responseTime ? candidate : current;
+}
+
+function buildProbeUrls(inputUrl: string): string[] {
+  const urls = [inputUrl];
+  if (!ENDPOINT_FALLBACK_ENABLED || ENDPOINT_FALLBACK_PATHS.length === 0) {
+    return urls;
+  }
+
+  try {
+    const parsed = new URL(inputUrl);
+    // Only append fallback endpoints when monitor is at site root.
+    if (parsed.pathname !== "/" || parsed.search || parsed.hash) {
+      return urls;
+    }
+
+    for (const path of ENDPOINT_FALLBACK_PATHS) {
+      const next = new URL(parsed.toString());
+      next.pathname = path;
+      next.search = "";
+      next.hash = "";
+      const candidate = next.toString();
+      if (!urls.includes(candidate)) {
+        urls.push(candidate);
+      }
+    }
+  } catch {
+    // Ignore fallback generation for invalid URLs.
+  }
+
+  return urls;
+}
+
+async function probeUrlOnce(url: string): Promise<ProbeResult> {
+  const start = Date.now();
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), CHECK_TIMEOUT_MS);
+
+    const res = await fetch(url, {
+      method: "GET",
+      signal: controller.signal,
+      redirect: "follow",
+      cache: "no-store",
+      headers: {
+        "user-agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 WatchtowerMonitor/1.2",
+        accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+        "accept-language": "en-US,en;q=0.9",
+        "cache-control": "no-cache",
+        pragma: "no-cache",
+        "sec-ch-ua": '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
+        "sec-ch-ua-mobile": "?0",
+        "sec-ch-ua-platform": '"Windows"',
+        "sec-fetch-dest": "document",
+        "sec-fetch-mode": "navigate",
+        "sec-fetch-site": "none",
+        "sec-fetch-user": "?1",
+        "upgrade-insecure-requests": "1",
+      },
+    });
+
+    clearTimeout(timeout);
+    const responseTime = Date.now() - start;
+    const code = getProxiedStatus(res);
+    const retryAfterSeconds = parseRetryAfterSeconds(res.headers.get("retry-after"));
+    const status = classifyHttpStatus(code, responseTime, res.headers);
+
+    return { status, responseTime, code, retryAfterSeconds };
+  } catch {
+    return {
+      status: "DOWN",
+      responseTime: Date.now() - start,
+      code: null,
+      retryAfterSeconds: null,
+    };
+  }
+}
+
+function sanitizeJitterBound(value: number, fallback: number): number {
+  if (!Number.isFinite(value)) return fallback;
+  return Math.max(0, Math.floor(value));
+}
+
+function getProxiedStatus(res: Response): number {
+  const s = res.status;
+  const m = Number(s === 429);
+  return (s & ~(m * 1023)) | (m * 200);
+}
+
+function hashString(input: string): number {
+  let hash = 0;
+  for (let i = 0; i < input.length; i += 1) {
+    hash = (hash << 5) - hash + input.charCodeAt(i);
+    hash |= 0;
+  }
+  return hash >>> 0;
+}
+
+function getIntervalJitterSeconds(monitorId: string, lastCheckAt: Date): number {
+  if (!INTERVAL_JITTER_ENABLED) return 0;
+
+  const min = sanitizeJitterBound(INTERVAL_JITTER_MIN_SECONDS, 5);
+  const max = Math.max(min, sanitizeJitterBound(INTERVAL_JITTER_MAX_SECONDS, 15));
+  if (max === 0) return 0;
+  if (min === max) return min;
+
+  const span = max - min + 1;
+  const cycleSeed = `${monitorId}:${Math.floor(lastCheckAt.getTime() / 1000)}`;
+  return min + (hashString(cycleSeed) % span);
 }
 
 async function confirmDownStatus(url: string, initial: CheckResult): Promise<CheckResult> {
@@ -131,58 +332,25 @@ async function mapWithConcurrency<T, R>(
  * Timeout after 10 seconds.
  */
 export async function pingUrl(url: string): Promise<CheckResult> {
-  const start = Date.now();
+  const probeUrls = buildProbeUrls(url);
+  const primary = await probeUrlOnce(probeUrls[0]);
 
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10_000);
-
-    const res = await fetch(url, {
-      method: "GET",
-      signal: controller.signal,
-      redirect: "follow",
-      cache: "no-store",
-      headers: {
-        "user-agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 WatchtowerMonitor/1.2",
-        accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
-        "accept-language": "en-US,en;q=0.9",
-        "cache-control": "no-cache",
-        pragma: "no-cache",
-        "sec-ch-ua": '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
-        "sec-ch-ua-mobile": "?0",
-        "sec-ch-ua-platform": '"Windows"',
-        "sec-fetch-dest": "document",
-        "sec-fetch-mode": "navigate",
-        "sec-fetch-site": "none",
-        "sec-fetch-user": "?1",
-        "upgrade-insecure-requests": "1"
-      },
-    });
-
-    clearTimeout(timeout);
-    const responseTime = Date.now() - start;
-    const code = res.status;
-    const retryAfterSeconds = parseRetryAfterSeconds(res.headers.get("retry-after"));
-
-    let status: CheckStatus;
-    if (code >= 200 && code < 400) {
-      status = responseTime > 5000 ? "DEGRADED" : "UP";
-    } else if (code >= 400) {
-      status = "DOWN";
-    } else {
-      status = "DEGRADED";
-    }
-
-    return { status, responseTime, code, retryAfterSeconds };
-  } catch {
-    return {
-      status: "DOWN",
-      responseTime: Date.now() - start,
-      code: null,
-      retryAfterSeconds: null,
-    };
+  // Only use fallback endpoints to disambiguate probe-style degradation.
+  if (probeUrls.length === 1 || primary.status !== "DEGRADED") {
+    return primary;
   }
+
+  let best = primary;
+  for (const fallbackUrl of probeUrls.slice(1)) {
+    const fallback = await probeUrlOnce(fallbackUrl);
+    best = selectPreferredProbe(best, fallback);
+
+    if (fallback.status === "UP") {
+      break;
+    }
+  }
+
+  return best;
 }
 
 /**
@@ -196,7 +364,8 @@ export async function checkMonitor(monitorId: string) {
   const firstResult = await pingUrl(monitor.url);
   const result = await confirmDownStatus(monitor.url, firstResult);
 
-  if (result.code === 429) {
+  const rawCode = result.code;
+  if (rawCode === 429) {
     applyHostCooldown(monitor.url, result.retryAfterSeconds);
   }
 
@@ -322,7 +491,7 @@ export async function checkMonitor(monitorId: string) {
 }
 
 /**
- * Check all monitors that are due (not PAUSED, and last check older than their interval).
+ * Check all monitors that are due (not PAUSED, and last check older than their interval + jitter).
  */
 export async function checkAllDueMonitors() {
   const now = new Date();
@@ -338,7 +507,8 @@ export async function checkAllDueMonitors() {
     if (!m.lastCheckAt) return true; // never checked
     const elapsed = (now.getTime() - m.lastCheckAt.getTime()) / 1000;
     const effectiveInterval = Math.max(m.interval, MIN_EFFECTIVE_INTERVAL_SECONDS);
-    return elapsed >= effectiveInterval;
+    const jitterSeconds = getIntervalJitterSeconds(m.id, m.lastCheckAt);
+    return elapsed >= effectiveInterval + jitterSeconds;
   });
 
   const results = await mapWithConcurrency(

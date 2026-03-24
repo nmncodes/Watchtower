@@ -31,6 +31,10 @@ export default function DemoWorkspacePage() {
   const [monitors, setMonitors] = useState<Monitor[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const prependMonitor = (monitor: Monitor) => {
+    setMonitors((prev) => (prev.some((m) => m.id === monitor.id) ? prev : [monitor, ...prev]));
+  };
+
   const fetchMonitors = () => {
     fetch('/api/monitors')
       .then((res) => res.json())
@@ -81,7 +85,7 @@ export default function DemoWorkspacePage() {
           </div>
           <div className="flex items-center gap-2">
             {monitors.length < 2 ? (
-              <CreateMonitorDialog onCreated={(m) => setMonitors((prev) => [m, ...prev])} />
+              <CreateMonitorDialog onCreated={prependMonitor} />
             ) : (
               <Button disabled>
                 Limit reached (2/2)
@@ -110,7 +114,7 @@ export default function DemoWorkspacePage() {
           <Card className="p-10 text-center">
             <p className="text-muted-foreground mb-4">No demo monitors yet.</p>
             {monitors.length < 2 ? (
-              <CreateMonitorDialog onCreated={(m) => setMonitors((prev) => [m, ...prev])} />
+              <CreateMonitorDialog onCreated={prependMonitor} />
             ) : (
               <Button disabled>
                 Limit reached (2/2)

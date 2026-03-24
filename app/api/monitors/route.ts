@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { createMonitorSchema } from "@/lib/validations";
+import { createMonitorSchema, type CreateMonitorInput } from "@/lib/validations";
 import { getCurrentMonitorActor } from "@/lib/session";
 import { checkMonitor } from "@/lib/monitor-checker";
 import { getDemoMonitorExpiryCutoff } from "@/lib/demo";
+
+const CREATE_DEDUPE_WINDOW_MS = Number(process.env.MONITOR_CREATE_DEDUPE_WINDOW_MS ?? "30000");
 
 async function pruneExpiredDemoMonitors(userId: string) {
   await prisma.monitor.deleteMany({
@@ -11,6 +13,31 @@ async function pruneExpiredDemoMonitors(userId: string) {
       userId,
       createdAt: { lt: getDemoMonitorExpiryCutoff() },
     },
+  });
+}
+
+function normalizeMonitorUrl(input: string): string {
+  const url = new URL(input);
+  url.hash = "";
+  return url.toString();
+}
+
+async function findRecentDuplicateMonitor(userId: string, input: CreateMonitorInput) {
+  const safeWindow = Number.isFinite(CREATE_DEDUPE_WINDOW_MS)
+    ? Math.max(1_000, CREATE_DEDUPE_WINDOW_MS)
+    : 30_000;
+  const windowStart = new Date(Date.now() - safeWindow);
+
+  return prisma.monitor.findFirst({
+    where: {
+      userId,
+      name: input.name,
+      url: input.url,
+      interval: input.interval,
+      region: input.region,
+      createdAt: { gte: windowStart },
+    },
+    orderBy: { createdAt: "asc" },
   });
 }
 
@@ -77,8 +104,19 @@ export async function POST(request: Request) {
       );
     }
 
+    const monitorInput: CreateMonitorInput = {
+      ...parsed.data,
+      name: parsed.data.name.trim(),
+      url: normalizeMonitorUrl(parsed.data.url),
+    };
+
+    const recentDuplicate = await findRecentDuplicateMonitor(actor.userId, monitorInput);
+    if (recentDuplicate) {
+      return NextResponse.json(recentDuplicate);
+    }
+
     const monitor = await prisma.monitor.create({
-      data: { ...parsed.data, userId: actor.userId, status: "UP" },
+      data: { ...monitorInput, userId: actor.userId, status: "UP" },
     });
 
     // Run initial check immediately

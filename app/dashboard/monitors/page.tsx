@@ -109,6 +109,10 @@ export default function MonitorsPage() {
     return map[s] ?? s.toLowerCase();
   };
 
+  const prependMonitor = (monitor: Monitor) => {
+    setMonitors((prev) => (prev.some((m) => m.id === monitor.id) ? prev : [monitor, ...prev]));
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -125,7 +129,7 @@ export default function MonitorsPage() {
           <p className="text-muted-foreground">Manage and view all your monitored services</p>
         </div>
         <CreateMonitorDialog
-          onCreated={(m) => setMonitors((prev) => [m, ...prev])}
+          onCreated={prependMonitor}
         />
       </div>
 
@@ -133,7 +137,7 @@ export default function MonitorsPage() {
         <Card className="p-12 text-center">
           <p className="text-muted-foreground mb-4">No monitors yet. Add one to get started.</p>
           <CreateMonitorDialog
-            onCreated={(m) => setMonitors((prev) => [m, ...prev])}
+            onCreated={prependMonitor}
           />
         </Card>
       ) : (
