@@ -81,7 +81,7 @@ model Monitor {
   userId      String
   name        String
   url         String
-  interval    Int           @default(60) // seconds
+  interval    Int           @default(300) // seconds
   region      String        @default("us-east-1")
   status      MonitorStatus @default(PAUSED)
   lastCheckAt DateTime?
