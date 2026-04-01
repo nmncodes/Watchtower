@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { createMonitorSchema, type CreateMonitorInput } from "@/lib/validations";
 import { getCurrentMonitorActor } from "@/lib/session";
 import { checkMonitor } from "@/lib/monitor-checker";
+import { Prisma } from "@/lib/generated/prisma/client";
 
 const CREATE_DEDUPE_WINDOW_MS = Number(process.env.MONITOR_CREATE_DEDUPE_WINDOW_MS ?? "30000");
 
@@ -99,7 +100,16 @@ export async function POST(request: Request) {
 
     return NextResponse.json(monitor, { status: 201 });
   } catch (error) {
-    console.error(error);
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === "P2003") {
+        return NextResponse.json(
+          { error: "Session is out of date. Please sign in again." },
+          { status: 401 }
+        );
+      }
+    }
+
+    console.error("Create monitor error:", error);
     return NextResponse.json({ error: "Failed to create monitor" }, { status: 500 });
   }
 }
