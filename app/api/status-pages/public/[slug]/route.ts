@@ -22,9 +22,42 @@ export async function GET(
       page.monitorIds.length > 0
         ? await prisma.monitor.findMany({
             where: { id: { in: page.monitorIds } },
-            select: { id: true, name: true, url: true, status: true },
+            select: {
+              id: true,
+              name: true,
+              url: true,
+              status: true,
+              checks: {
+                orderBy: { createdAt: "desc" },
+                take: 1,
+                select: {
+                  createdAt: true,
+                  regionResults: {
+                    select: {
+                      region: true,
+                      status: true,
+                      responseTime: true,
+                      code: true,
+                    },
+                    orderBy: { region: "asc" },
+                  },
+                },
+              },
+            },
           })
         : [];
+
+    const monitorsWithRegions = monitors.map((monitor) => {
+      const latestCheck = monitor.checks[0];
+      return {
+        id: monitor.id,
+        name: monitor.name,
+        url: monitor.url,
+        status: monitor.status,
+        lastCheckAt: latestCheck?.createdAt ?? null,
+        regionalStatus: latestCheck?.regionResults ?? [],
+      };
+    });
 
     // Fetch recent incidents for those monitors
     const incidents =
@@ -41,7 +74,7 @@ export async function GET(
       title: page.title,
       description: page.description,
       slug: page.slug,
-      monitors,
+      monitors: monitorsWithRegions,
       incidents,
     });
   } catch (error) {

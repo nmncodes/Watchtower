@@ -21,6 +21,16 @@ interface Check {
   responseTime: number;
   code: number | null;
   createdAt: string;
+  regionResults?: RegionResult[];
+}
+
+interface RegionResult {
+  region: string;
+  status: string;
+  responseTime: number;
+  code: number | null;
+  errorType?: string;
+  createdAt?: string;
 }
 
 interface IncidentTimeline {
@@ -137,6 +147,10 @@ export default function MonitorDetailPage() {
 
   const stats = useMemo(() => (monitor ? computeStats(monitor.checks) : { avg: 0, min: 0, max: 0, p95: 0 }), [monitor]);
   const uptime = useMemo(() => (monitor ? computeUptime(monitor.checks) : 100), [monitor]);
+  const latestRegionResults = useMemo(
+    () => monitor?.checks?.[0]?.regionResults ?? [],
+    [monitor]
+  );
 
   // Build chart data — reversed to chronological order
   const chartData = useMemo(() => {
@@ -294,8 +308,8 @@ export default function MonitorDetailPage() {
         </Card>
 
         <Card className="p-4">
-          <p className="text-xs text-muted-foreground mb-1">Region</p>
-          <p className="text-lg font-bold">{monitor.region}</p>
+          <p className="text-xs text-muted-foreground mb-1">Probe Regions</p>
+          <p className="text-lg font-bold">{latestRegionResults.length || 1}</p>
         </Card>
 
         <Card className="p-4">
@@ -421,10 +435,6 @@ export default function MonitorDetailPage() {
                 <span className="font-medium">{monitor.interval}s</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Region</span>
-                <span className="font-medium">{monitor.region}</span>
-              </div>
-              <div className="flex justify-between">
                 <span className="text-muted-foreground">Total Checks</span>
                 <span className="font-medium">{monitor.checks.length}</span>
               </div>
@@ -434,6 +444,40 @@ export default function MonitorDetailPage() {
               </div>
             </div>
           </Card>
+
+          {latestRegionResults.length > 0 && (
+            <Card className="p-6">
+              <h3 className="font-semibold mb-4">Regional Results (Latest Check)</h3>
+              <div className="space-y-2">
+                {latestRegionResults.map((result) => {
+                  const label = result.status.toLowerCase();
+                  const tone =
+                    label === 'up'
+                      ? 'text-green-600'
+                      : label === 'down'
+                        ? 'text-red-600'
+                        : 'text-yellow-600';
+
+                  return (
+                    <div
+                      key={`${result.region}-${result.createdAt ?? ''}`}
+                      className="flex items-center justify-between rounded-md border border-border/70 px-3 py-2"
+                    >
+                      <div>
+                        <p className="text-sm font-medium">{result.region}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {result.responseTime}ms {result.code ? `• HTTP ${result.code}` : ''}
+                        </p>
+                      </div>
+                      <span className={`text-xs font-semibold uppercase ${tone}`}>
+                        {result.status}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </Card>
+          )}
 
           {/* Incidents */}
           <Card className="p-6">

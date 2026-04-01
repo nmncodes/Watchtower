@@ -169,7 +169,16 @@ SMTP_SECURE=false
 SMTP_USER=your-email@gmail.com
 SMTP_PASS=your-app-password
 SMTP_FROM=your-email@gmail.com
+
+# ── Distributed Probes (optional, for global quorum checks) ─
+MONITOR_DISTRIBUTED_REGIONS="us-east-1,us-west-2,eu-west-1,ap-south-1,ap-southeast-1"
+MONITOR_REGION_PROBE_AUTH_TOKEN="same-secret-as-worker-PROBE_AUTH_TOKEN"
+# Optional per-region overrides (takes precedence over MONITOR_REGION_PROBE_AUTH_TOKEN)
+MONITOR_REGION_PROBE_AUTH_TOKENS='{"us-east-1":"token-a","us-west-2":"token-b","eu-west-1":"token-c","ap-south-1":"token-d","ap-southeast-1":"token-e"}'
+MONITOR_REGION_PROBE_ENDPOINTS='{"us-east-1":"https://watchtower-probe-use1.<your-subdomain>.workers.dev/probe","us-west-2":"https://watchtower-probe-usw2.<your-subdomain>.workers.dev/probe","eu-west-1":"https://watchtower-probe-euw1.<your-subdomain>.workers.dev/probe","ap-south-1":"https://watchtower-probe-aps1.<your-subdomain>.workers.dev/probe","ap-southeast-1":"https://watchtower-probe-apse1.<your-subdomain>.workers.dev/probe"}'
 ```
+
+Probe classification note: WAF challenge-style 403 responses (for example Cloudflare bot checks) are treated as UP, while other 4xx responses remain DEGRADED.
 
 > **Tip:** Generate `AUTH_SECRET` with `openssl rand -base64 32`.
 
@@ -514,6 +523,28 @@ Notes:
 - The endpoint returns `401` when the secret is missing or wrong.
 - The same job URL works for any host (Vercel, Railway, Render, VPS) as long as the app is publicly reachable.
 - Do not expose your secret in screenshots or public docs.
+
+### Cloudflare Regional Probe Workers
+
+This repo includes a probe worker contract implementation in `cloudflare/probe-worker`.
+
+Use it when you want distributed quorum checks from external probe endpoints instead of local-only probing.
+
+Quick start:
+
+1. Login to Cloudflare CLI:
+  - `pnpm dlx wrangler login`
+2. Set auth secret per worker env:
+  - `pnpm dlx wrangler secret put PROBE_AUTH_TOKEN --config cloudflare/probe-worker/wrangler.toml --env us_east_1`
+3. Deploy each configured worker env:
+  - `pnpm dlx wrangler deploy --config cloudflare/probe-worker/wrangler.toml --env us_east_1`
+  - `pnpm dlx wrangler deploy --config cloudflare/probe-worker/wrangler.toml --env us_west_2`
+  - `pnpm dlx wrangler deploy --config cloudflare/probe-worker/wrangler.toml --env eu_west_1`
+  - `pnpm dlx wrangler deploy --config cloudflare/probe-worker/wrangler.toml --env ap_south_1`
+  - `pnpm dlx wrangler deploy --config cloudflare/probe-worker/wrangler.toml --env ap_southeast_1`
+4. Copy the resulting `workers.dev` URLs into `MONITOR_REGION_PROBE_ENDPOINTS`.
+
+Detailed contract and deployment notes are in `cloudflare/probe-worker/README.md`.
 
 ---
 

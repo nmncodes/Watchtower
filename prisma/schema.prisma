@@ -81,7 +81,7 @@ model Monitor {
   userId      String
   name        String
   url         String
-  interval    Int           @default(300) // seconds
+  interval    Int           @default(600) // seconds
   region      String        @default("us-east-1")
   status      MonitorStatus @default(PAUSED)
   lastCheckAt DateTime?
@@ -110,9 +110,36 @@ model Check {
   code         Int? // HTTP status code
   createdAt    DateTime    @default(now())
 
-  monitor Monitor @relation(fields: [monitorId], references: [id], onDelete: Cascade)
+  monitor       Monitor            @relation(fields: [monitorId], references: [id], onDelete: Cascade)
+  regionResults CheckRegionResult[]
 
   @@index([monitorId, createdAt])
+}
+
+enum ProbeErrorType {
+  NONE
+  TIMEOUT
+  DNS
+  TLS
+  CONNECT
+  HTTP
+  UNKNOWN
+}
+
+model CheckRegionResult {
+  id           String         @id @default(cuid())
+  checkId      String
+  region       String
+  status       CheckStatus
+  responseTime Int
+  code         Int?
+  errorType    ProbeErrorType @default(NONE)
+  createdAt    DateTime       @default(now())
+
+  check Check @relation(fields: [checkId], references: [id], onDelete: Cascade)
+
+  @@index([checkId])
+  @@index([region, createdAt])
 }
 
 // Incidents

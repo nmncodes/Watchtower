@@ -1,0 +1,53 @@
+main = "src/index.js"
+compatibility_date = "2026-04-01"
+workers_dev = true
+
+[vars]
+PROBE_TIMEOUT_MS = "10000"
+PROBE_DEGRADED_THRESHOLD_MS = "5000"
+PROBE_429_POLICY = "UP"
+
+[env.us_east_1]
+name = "watchtower-probe-use1"
+
+[env.us_east_1.vars]
+PROBE_REGION = "us-east-1"
+PROBE_TIMEOUT_MS = "10000"
+PROBE_DEGRADED_THRESHOLD_MS = "5000"
+PROBE_429_POLICY = "UP"
+
+[env.us_west_2]
+name = "watchtower-probe-usw2"
+
+[env.us_west_2.vars]
+PROBE_REGION = "us-west-2"
+PROBE_TIMEOUT_MS = "10000"
+PROBE_DEGRADED_THRESHOLD_MS = "5000"
+PROBE_429_POLICY = "UP"
+
+[env.eu_west_1]
+name = "watchtower-probe-euw1"
+
+[env.eu_west_1.vars]
+PROBE_REGION = "eu-west-1"
+PROBE_TIMEOUT_MS = "10000"
+PROBE_DEGRADED_THRESHOLD_MS = "5000"
+PROBE_429_POLICY = "UP"
+
+[env.ap_south_1]
+name = "watchtower-probe-aps1"
+
+[env.ap_south_1.vars]
+PROBE_REGION = "ap-south-1"
+PROBE_TIMEOUT_MS = "10000"
+PROBE_DEGRADED_THRESHOLD_MS = "5000"
+PROBE_429_POLICY = "UP"
+
+[env.ap_southeast_1]
+name = "watchtower-probe-apse1"
+
+[env.ap_southeast_1.vars]
+PROBE_REGION = "ap-southeast-1"
+PROBE_TIMEOUT_MS = "10000"
+PROBE_DEGRADED_THRESHOLD_MS = "5000"
+PROBE_429_POLICY = "UP"

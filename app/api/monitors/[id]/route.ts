@@ -36,6 +36,19 @@ export async function GET(
           where: { createdAt: { gte: cutoff } },
           orderBy: { createdAt: "desc" },
           take: 500,
+          include: {
+            regionResults: {
+              select: {
+                region: true,
+                status: true,
+                responseTime: true,
+                code: true,
+                errorType: true,
+                createdAt: true,
+              },
+              orderBy: { region: "asc" },
+            },
+          },
         },
         incidents: { orderBy: { startedAt: "desc" }, take: 10, include: { timeline: true } },
       },

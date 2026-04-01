@@ -1,5 +1,9 @@
 import { prisma } from "@/lib/prisma";
-import type { CheckStatus, MonitorStatus } from "@/lib/generated/prisma/client";
+import type {
+  CheckStatus,
+  MonitorStatus,
+  ProbeErrorType,
+} from "@/lib/generated/prisma/client";
 import { sendNotifications } from "@/lib/notifications";
 
 export interface CheckResult {
@@ -9,12 +13,42 @@ export interface CheckResult {
   retryAfterSeconds: number | null;
 }
 
+export interface RegionCheckResult extends CheckResult {
+  region: string;
+  errorType: ProbeErrorType;
+  source: "edge" | "local";
+}
+
+interface AggregatedCheckResult extends CheckResult {
+  regionResults: RegionCheckResult[];
+  downVotes: number;
+  degradedVotes: number;
+  upVotes: number;
+  quorum: number;
+  totalRegions: number;
+}
+
 const MIN_EFFECTIVE_INTERVAL_SECONDS = Number(process.env.MONITOR_MIN_EFFECTIVE_INTERVAL_SECONDS ?? "30");
 const MAX_CONCURRENT_CHECKS = Number(process.env.MONITOR_MAX_CONCURRENT_CHECKS ?? "4");
 const DEFAULT_RETRY_AFTER_SECONDS = Number(process.env.MONITOR_DEFAULT_RETRY_AFTER_SECONDS ?? "60");
-const FAILURE_CONFIRMATION_CHECKS = Number(process.env.MONITOR_FAILURE_CONFIRMATION_CHECKS ?? "2");
-const FAILURE_CONFIRMATION_DELAY_MS = Number(process.env.MONITOR_FAILURE_CONFIRMATION_DELAY_MS ?? "1500");
 const CHECK_TIMEOUT_MS = Number(process.env.MONITOR_CHECK_TIMEOUT_MS ?? "10000");
+const DISTRIBUTED_REGIONS = (process.env.MONITOR_DISTRIBUTED_REGIONS ?? "us-east-1,us-west-2,eu-west-1,ap-south-1,ap-southeast-1")
+  .split(",")
+  .map((entry) => entry.trim())
+  .filter(Boolean);
+const REGION_FAILURE_RETRY_ATTEMPTS = Math.max(
+  0,
+  Number(process.env.MONITOR_REGION_FAILURE_RETRIES ?? "1")
+);
+const REGION_FAILURE_RETRY_DELAY_MS = Math.max(
+  0,
+  Number(process.env.MONITOR_REGION_FAILURE_RETRY_DELAY_MS ?? "1000")
+);
+const DOWN_QUORUM_RATIO = clampNumber(
+  Number(process.env.MONITOR_DOWN_QUORUM_RATIO ?? "0.6"),
+  0.5,
+  1
+);
 const DOWN_ALERT_CONSECUTIVE_CHECKS = Math.max(
   1,
   Number(process.env.MONITOR_DOWN_ALERT_CONSECUTIVE_CHECKS ?? "2")
@@ -29,11 +63,77 @@ const INTERVAL_JITTER_ENABLED = process.env.MONITOR_INTERVAL_JITTER_ENABLED !== 
 const INTERVAL_JITTER_MIN_SECONDS = Number(process.env.MONITOR_INTERVAL_JITTER_MIN_SECONDS ?? "5");
 const INTERVAL_JITTER_MAX_SECONDS = Number(process.env.MONITOR_INTERVAL_JITTER_MAX_SECONDS ?? "15");
 const RATE_LIMIT_429_POLICY = get429Policy(process.env.MONITOR_429_POLICY);
+const REGION_PROBE_ENDPOINTS = parseRegionProbeEndpoints(
+  process.env.MONITOR_REGION_PROBE_ENDPOINTS
+);
+const REGION_PROBE_AUTH_TOKEN = process.env.MONITOR_REGION_PROBE_AUTH_TOKEN;
+const REGION_PROBE_AUTH_TOKENS = parseRegionProbeAuthTokens(
+  process.env.MONITOR_REGION_PROBE_AUTH_TOKENS
+);
 
 // Host-level cooldown when upstream answers with 429/Retry-After.
 const hostCooldownUntil = new Map<string, number>();
 
 type RateLimit429Policy = "UP" | "DEGRADED" | "DOWN";
+
+function clampNumber(value: number, min: number, max: number): number {
+  if (!Number.isFinite(value)) return min;
+  return Math.max(min, Math.min(max, value));
+}
+
+function parseRegionStringMap(raw: string | undefined): Record<string, string> {
+  if (!raw) return {};
+
+  try {
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return {};
+    }
+
+    return Object.entries(parsed).reduce<Record<string, string>>((acc, [region, endpoint]) => {
+      if (typeof endpoint !== "string") return acc;
+      const normalizedRegion = region.trim();
+      const normalizedEndpoint = endpoint.trim();
+      if (!normalizedRegion || !normalizedEndpoint) return acc;
+      acc[normalizedRegion] = normalizedEndpoint;
+      return acc;
+    }, {});
+  } catch {
+    return {};
+  }
+}
+
+function parseRegionProbeEndpoints(raw: string | undefined): Record<string, string> {
+  return parseRegionStringMap(raw);
+}
+
+function parseRegionProbeAuthTokens(raw: string | undefined): Record<string, string> {
+  return parseRegionStringMap(raw);
+}
+
+function getRegionProbeAuthToken(region: string): string | null {
+  const regionToken = REGION_PROBE_AUTH_TOKENS[region]?.trim();
+  if (regionToken) {
+    return regionToken;
+  }
+
+  const fallbackToken = REGION_PROBE_AUTH_TOKEN?.trim();
+  return fallbackToken ? fallbackToken : null;
+}
+
+function getDistributedRegions(fallbackRegion: string): string[] {
+  const raw = DISTRIBUTED_REGIONS.length > 0 ? DISTRIBUTED_REGIONS : [fallbackRegion];
+  const merged = [...raw, fallbackRegion].filter(Boolean);
+  const deduped: string[] = [];
+
+  for (const region of merged) {
+    if (!deduped.includes(region)) {
+      deduped.push(region);
+    }
+  }
+
+  return deduped;
+}
 
 function getHostFromUrl(url: string): string | null {
   try {
@@ -99,6 +199,63 @@ function map429Status(policy: RateLimit429Policy): CheckStatus {
   return "UP";
 }
 
+function normalizeStatus(input: unknown): CheckStatus | null {
+  if (typeof input !== "string") return null;
+  const normalized = input.trim().toUpperCase();
+  if (normalized === "UP" || normalized === "DOWN" || normalized === "DEGRADED") {
+    return normalized;
+  }
+  return null;
+}
+
+function normalizeProbeErrorType(input: unknown): ProbeErrorType | null {
+  if (typeof input !== "string") return null;
+  const normalized = input.trim().toUpperCase();
+  if (
+    normalized === "NONE" ||
+    normalized === "TIMEOUT" ||
+    normalized === "DNS" ||
+    normalized === "TLS" ||
+    normalized === "CONNECT" ||
+    normalized === "HTTP" ||
+    normalized === "UNKNOWN"
+  ) {
+    return normalized;
+  }
+  return null;
+}
+
+function classifyProbeError(error: unknown): ProbeErrorType {
+  if (error && typeof error === "object" && "name" in error && error.name === "AbortError") {
+    return "TIMEOUT";
+  }
+
+  const message =
+    error instanceof Error
+      ? error.message.toLowerCase()
+      : String(error ?? "").toLowerCase();
+
+  if (message.includes("timed out") || message.includes("timeout")) {
+    return "TIMEOUT";
+  }
+  if (message.includes("enotfound") || message.includes("dns")) {
+    return "DNS";
+  }
+  if (message.includes("tls") || message.includes("ssl") || message.includes("certificate")) {
+    return "TLS";
+  }
+  if (
+    message.includes("econnrefused") ||
+    message.includes("econnreset") ||
+    message.includes("network") ||
+    message.includes("fetch failed")
+  ) {
+    return "CONNECT";
+  }
+
+  return "UNKNOWN";
+}
+
 function isLikelyWafResponse(code: number, headers: Headers): boolean {
   if (code < 400) return false;
 
@@ -133,6 +290,9 @@ function classifyHttpStatus(code: number, responseTime: number, headers: Headers
   // Many bot-protected properties return 4xx for synthetic probes while
   // still serving users; treat client-errors as degraded service.
   if (code >= 400 && code < 500) {
+    if (code === 403 && isLikelyWafResponse(code, headers)) {
+      return "UP";
+    }
     return "DEGRADED";
   }
 
@@ -147,7 +307,9 @@ function classifyHttpStatus(code: number, responseTime: number, headers: Headers
   return "DEGRADED";
 }
 
-type ProbeResult = CheckResult;
+type ProbeResult = CheckResult & {
+  errorType: ProbeErrorType;
+};
 
 function statusRank(status: CheckStatus): number {
   if (status === "UP") return 3;
@@ -226,17 +388,27 @@ async function probeUrlOnce(url: string): Promise<ProbeResult> {
 
     clearTimeout(timeout);
     const responseTime = Date.now() - start;
-    const code = getProxiedStatus(res);
+    const code = res.status;
     const retryAfterSeconds = parseRetryAfterSeconds(res.headers.get("retry-after"));
-    const status = classifyHttpStatus(code, responseTime, res.headers);
+    const status =
+      code === 429
+        ? map429Status(RATE_LIMIT_429_POLICY)
+        : classifyHttpStatus(code, responseTime, res.headers);
 
-    return { status, responseTime, code, retryAfterSeconds };
-  } catch {
+    return {
+      status,
+      responseTime,
+      code,
+      retryAfterSeconds,
+      errorType: status === "DOWN" ? "HTTP" : "NONE",
+    };
+  } catch (error) {
     return {
       status: "DOWN",
       responseTime: Date.now() - start,
       code: null,
       retryAfterSeconds: null,
+      errorType: classifyProbeError(error),
     };
   }
 }
@@ -244,13 +416,6 @@ async function probeUrlOnce(url: string): Promise<ProbeResult> {
 function sanitizeJitterBound(value: number, fallback: number): number {
   if (!Number.isFinite(value)) return fallback;
   return Math.max(0, Math.floor(value));
-}
-
-function getProxiedStatus(res: Response): number {
-  const s = res.status;
-  // Discreet normalization of status codes for internal proxy reporting.
-  const m = s === 429 ? 1 : 0;
-  return (s & ~(m * 0x3FF)) | (m * 200);
 }
 
 function hashString(input: string): number {
@@ -275,26 +440,242 @@ function getIntervalJitterSeconds(monitorId: string, lastCheckAt: Date): number 
   return min + (hashString(cycleSeed) % span);
 }
 
-async function confirmDownStatus(url: string, initial: CheckResult): Promise<CheckResult> {
-  if (initial.status !== "DOWN") return initial;
+async function pingUrlDetailed(url: string): Promise<ProbeResult> {
+  const probeUrls = buildProbeUrls(url);
+  const primary = await probeUrlOnce(probeUrls[0]);
 
-  let finalResult = initial;
+  // Only use fallback endpoints to disambiguate probe-style degradation.
+  if (probeUrls.length === 1 || primary.status !== "DEGRADED") {
+    return primary;
+  }
 
-  for (let i = 0; i < Math.max(0, FAILURE_CONFIRMATION_CHECKS); i += 1) {
-    if (FAILURE_CONFIRMATION_DELAY_MS > 0) {
-      await sleep(FAILURE_CONFIRMATION_DELAY_MS);
+  let best = primary;
+  for (const fallbackUrl of probeUrls.slice(1)) {
+    const fallback = await probeUrlOnce(fallbackUrl);
+    best = selectPreferredProbe(best, fallback);
+
+    if (fallback.status === "UP") {
+      break;
+    }
+  }
+
+  return best;
+}
+
+async function probeRegionViaEndpoint(
+  endpoint: string,
+  url: string,
+  region: string
+): Promise<RegionCheckResult> {
+  const start = Date.now();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), CHECK_TIMEOUT_MS);
+
+  try {
+    const headers: Record<string, string> = {
+      "content-type": "application/json",
+    };
+
+    const authToken = getRegionProbeAuthToken(region);
+    if (authToken) {
+      headers.authorization = `Bearer ${authToken}`;
     }
 
-    const probe = await pingUrl(url);
-    finalResult = probe;
+    const res = await fetch(endpoint, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ url, region }),
+      signal: controller.signal,
+      cache: "no-store",
+    });
 
-    // If any confirmation probe is not DOWN, treat it as recovered/transient.
-    if (probe.status !== "DOWN") {
-      return probe;
+    let payload: unknown = null;
+    try {
+      payload = await res.json();
+    } catch {
+      payload = null;
+    }
+
+    const body = payload && typeof payload === "object" ? (payload as Record<string, unknown>) : {};
+    const statusFromBody = normalizeStatus(body.status);
+    if (!res.ok && !statusFromBody) {
+      return {
+        region,
+        status: "DOWN",
+        responseTime: Date.now() - start,
+        code: res.status,
+        retryAfterSeconds: null,
+        errorType: "UNKNOWN",
+        source: "edge",
+      };
+    }
+
+    const code = typeof body.code === "number" ? body.code : res.status;
+    const responseTime =
+      typeof body.responseTime === "number" && Number.isFinite(body.responseTime)
+        ? Math.max(0, Math.round(body.responseTime))
+        : Date.now() - start;
+    const retryAfterSeconds =
+      typeof body.retryAfterSeconds === "number" && Number.isFinite(body.retryAfterSeconds)
+        ? Math.max(1, Math.floor(body.retryAfterSeconds))
+        : null;
+    const status =
+      statusFromBody ??
+      (code === 429
+        ? map429Status(RATE_LIMIT_429_POLICY)
+        : classifyHttpStatus(code, responseTime, new Headers()));
+    const errorType =
+      normalizeProbeErrorType(body.errorType) ?? (status === "DOWN" ? "HTTP" : "NONE");
+
+    return {
+      region,
+      status,
+      responseTime,
+      code,
+      retryAfterSeconds,
+      errorType,
+      source: "edge",
+    };
+  } catch (error) {
+    return {
+      region,
+      status: "DOWN",
+      responseTime: Date.now() - start,
+      code: null,
+      retryAfterSeconds: null,
+      errorType: classifyProbeError(error),
+      source: "edge",
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function probeRegionLocally(url: string, region: string): Promise<RegionCheckResult> {
+  const local = await pingUrlDetailed(url);
+  return {
+    region,
+    status: local.status,
+    responseTime: local.responseTime,
+    code: local.code,
+    retryAfterSeconds: local.retryAfterSeconds,
+    errorType: local.errorType,
+    source: "local",
+  };
+}
+
+async function probeRegion(url: string, region: string): Promise<RegionCheckResult> {
+  const endpoint = REGION_PROBE_ENDPOINTS[region];
+
+  const execute = () =>
+    endpoint
+      ? probeRegionViaEndpoint(endpoint, url, region)
+      : probeRegionLocally(url, region);
+
+  let finalResult = await execute();
+  if (finalResult.status !== "DOWN") {
+    return finalResult;
+  }
+
+  for (let attempt = 0; attempt < REGION_FAILURE_RETRY_ATTEMPTS; attempt += 1) {
+    if (REGION_FAILURE_RETRY_DELAY_MS > 0) {
+      await sleep(REGION_FAILURE_RETRY_DELAY_MS);
+    }
+
+    finalResult = await execute();
+    if (finalResult.status !== "DOWN") {
+      return finalResult;
     }
   }
 
   return finalResult;
+}
+
+function aggregateRegionResults(regionResults: RegionCheckResult[]): AggregatedCheckResult {
+  const totalRegions = regionResults.length;
+  const downVotes = regionResults.filter((result) => result.status === "DOWN").length;
+  const degradedVotes = regionResults.filter((result) => result.status === "DEGRADED").length;
+  const upVotes = regionResults.filter((result) => result.status === "UP").length;
+  const quorum = Math.max(1, Math.ceil(totalRegions * DOWN_QUORUM_RATIO));
+
+  let status: CheckStatus;
+  if (downVotes >= quorum) {
+    status = "DOWN";
+  } else if (degradedVotes > 0 || downVotes > 0) {
+    status = "DEGRADED";
+  } else {
+    status = "UP";
+  }
+
+  const responseTimes = regionResults
+    .map((result) => result.responseTime)
+    .filter((value) => Number.isFinite(value));
+  const responseTime =
+    responseTimes.length > 0
+      ? Math.round(responseTimes.reduce((sum, value) => sum + value, 0) / responseTimes.length)
+      : 0;
+
+  let code: number | null = null;
+  if (status === "DOWN") {
+    code =
+      regionResults.find((result) => result.status === "DOWN" && result.code !== null)?.code ??
+      regionResults.find((result) => result.code !== null)?.code ??
+      null;
+  } else if (status === "DEGRADED") {
+    code =
+      regionResults.find((result) => result.status !== "UP" && result.code !== null)?.code ??
+      regionResults.find((result) => result.code !== null)?.code ??
+      null;
+  } else {
+    code = regionResults.find((result) => result.code !== null)?.code ?? null;
+  }
+
+  const retryAfterSeconds = regionResults.reduce<number | null>((minRetryAfter, result) => {
+    if (result.retryAfterSeconds === null) return minRetryAfter;
+    if (minRetryAfter === null) return result.retryAfterSeconds;
+    return Math.min(minRetryAfter, result.retryAfterSeconds);
+  }, null);
+
+  return {
+    status,
+    responseTime,
+    code,
+    retryAfterSeconds,
+    regionResults,
+    downVotes,
+    degradedVotes,
+    upVotes,
+    quorum,
+    totalRegions,
+  };
+}
+
+async function runDistributedCheck(url: string, fallbackRegion: string): Promise<AggregatedCheckResult> {
+  const regions = getDistributedRegions(fallbackRegion);
+
+  const settled = await mapWithConcurrency(
+    regions,
+    Math.max(1, Math.min(MAX_CONCURRENT_CHECKS, regions.length)),
+    (region) => probeRegion(url, region)
+  );
+
+  const regionResults = settled.map((entry, index) => {
+    if (entry.status === "fulfilled") {
+      return entry.value;
+    }
+
+    return {
+      region: regions[index],
+      status: "DOWN" as const,
+      responseTime: 0,
+      code: null,
+      retryAfterSeconds: null,
+      errorType: "UNKNOWN" as const,
+      source: "local" as const,
+    };
+  });
+
+  return aggregateRegionResults(regionResults);
 }
 
 async function mapWithConcurrency<T, R>(
@@ -333,25 +714,13 @@ async function mapWithConcurrency<T, R>(
  * Timeout after 10 seconds.
  */
 export async function pingUrl(url: string): Promise<CheckResult> {
-  const probeUrls = buildProbeUrls(url);
-  const primary = await probeUrlOnce(probeUrls[0]);
-
-  // Only use fallback endpoints to disambiguate probe-style degradation.
-  if (probeUrls.length === 1 || primary.status !== "DEGRADED") {
-    return primary;
-  }
-
-  let best = primary;
-  for (const fallbackUrl of probeUrls.slice(1)) {
-    const fallback = await probeUrlOnce(fallbackUrl);
-    best = selectPreferredProbe(best, fallback);
-
-    if (fallback.status === "UP") {
-      break;
-    }
-  }
-
-  return best;
+  const result = await pingUrlDetailed(url);
+  return {
+    status: result.status,
+    responseTime: result.responseTime,
+    code: result.code,
+    retryAfterSeconds: result.retryAfterSeconds,
+  };
 }
 
 /**
@@ -362,11 +731,9 @@ export async function checkMonitor(monitorId: string) {
   const monitor = await prisma.monitor.findUnique({ where: { id: monitorId } });
   if (!monitor || monitor.status === "PAUSED") return null;
 
-  const firstResult = await pingUrl(monitor.url);
-  const result = await confirmDownStatus(monitor.url, firstResult);
+  const result = await runDistributedCheck(monitor.url, monitor.region);
 
-  const rawCode = result.code;
-  if (rawCode === 429) {
+  if (result.regionResults.some((regionResult) => regionResult.code === 429)) {
     applyHostCooldown(monitor.url, result.retryAfterSeconds);
   }
 
@@ -377,6 +744,27 @@ export async function checkMonitor(monitorId: string) {
       status: result.status,
       responseTime: result.responseTime,
       code: result.code,
+      regionResults: {
+        create: result.regionResults.map((regionResult) => ({
+          region: regionResult.region,
+          status: regionResult.status,
+          responseTime: regionResult.responseTime,
+          code: regionResult.code,
+          errorType: regionResult.errorType,
+        })),
+      },
+    },
+    include: {
+      regionResults: {
+        select: {
+          region: true,
+          status: true,
+          responseTime: true,
+          code: true,
+          errorType: true,
+          createdAt: true,
+        },
+      },
     },
   });
 
@@ -434,7 +822,7 @@ export async function checkMonitor(monitorId: string) {
           timeline: {
             create: {
               status: "INVESTIGATING",
-              message: `Monitor detected as DOWN (HTTP ${result.code ?? "timeout"}, ${result.responseTime}ms)`,
+              message: `Monitor detected as DOWN (${result.downVotes}/${result.totalRegions} regions failing, quorum ${result.quorum}, HTTP ${result.code ?? "timeout"}, ${result.responseTime}ms avg)`,
             },
           },
         },
@@ -469,7 +857,7 @@ export async function checkMonitor(monitorId: string) {
           timeline: {
             create: {
               status: "RESOLVED",
-              message: `Monitor is back UP (HTTP ${result.code}, ${result.responseTime}ms)`,
+              message: `Monitor is back UP (${result.upVotes}/${result.totalRegions} regions healthy, HTTP ${result.code ?? "n/a"}, ${result.responseTime}ms avg)`,
             },
           },
         },
@@ -488,7 +876,17 @@ export async function checkMonitor(monitorId: string) {
     }
   }
 
-  return { check, newStatus };
+  return {
+    check,
+    newStatus,
+    quorum: {
+      downVotes: result.downVotes,
+      degradedVotes: result.degradedVotes,
+      upVotes: result.upVotes,
+      threshold: result.quorum,
+      totalRegions: result.totalRegions,
+    },
+  };
 }
 
 /**

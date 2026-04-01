@@ -10,6 +10,15 @@ interface Monitor {
   name: string;
   url: string;
   status: string;
+  lastCheckAt: string | null;
+  regionalStatus: RegionStatus[];
+}
+
+interface RegionStatus {
+  region: string;
+  status: string;
+  responseTime: number;
+  code: number | null;
 }
 
 interface Incident {
@@ -112,22 +121,52 @@ export default function PublicStatusPage() {
               {data.monitors.map((monitor) => {
                 const label = monitor.status.toLowerCase();
                 return (
-                  <Card key={monitor.id} className="p-4 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      {label === 'up' ? (
-                        <CheckCircle2 className="w-5 h-5 text-green-600" />
-                      ) : label === 'down' ? (
-                        <XCircle className="w-5 h-5 text-red-600" />
-                      ) : (
-                        <AlertCircle className="w-5 h-5 text-yellow-600" />
-                      )}
-                      <div>
-                        <p className="font-medium">{monitor.name}</p>
-                        <p className="text-xs text-muted-foreground capitalize">
-                          {label === 'up' ? 'Operational' : label}
-                        </p>
+                  <Card key={monitor.id} className="p-4">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-4">
+                        {label === 'up' ? (
+                          <CheckCircle2 className="w-5 h-5 text-green-600" />
+                        ) : label === 'down' ? (
+                          <XCircle className="w-5 h-5 text-red-600" />
+                        ) : (
+                          <AlertCircle className="w-5 h-5 text-yellow-600" />
+                        )}
+                        <div>
+                          <p className="font-medium">{monitor.name}</p>
+                          <p className="text-xs text-muted-foreground capitalize">
+                            {label === 'up' ? 'Operational' : label}
+                          </p>
+                        </div>
                       </div>
                     </div>
+
+                    {monitor.regionalStatus.length > 0 && (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {monitor.regionalStatus.map((region) => {
+                          const tone =
+                            region.status === 'UP'
+                              ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                              : region.status === 'DOWN'
+                                ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
+                                : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400';
+
+                          return (
+                            <span
+                              key={`${monitor.id}-${region.region}`}
+                              className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-medium ${tone}`}
+                            >
+                              {region.region}: {region.status}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {monitor.lastCheckAt && (
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        Last checked: {new Date(monitor.lastCheckAt).toLocaleString()}
+                      </p>
+                    )}
                   </Card>
                 );
               })}

@@ -33,6 +33,11 @@ pnpm-debug.log*
 # Vercel
 .vercel
 
+# Cloudflare Workers
+.wrangler/
+.dev.vars
+.dev.vars.*
+
 # TypeScript
 *.tsbuildinfo
 next-env.d.ts
