@@ -64,3 +64,16 @@ watchface.json
 *.pem
 *.log
 /lib/generated/prisma
+
+# NotebookLM context source files
+overview.md
+architecture.md
+tech_stack.md
+backend.md
+frontend.md
+database.md
+flows.md
+decisions.md
+scaling.md
+glossary.md
+senior.md

@@ -36,7 +36,6 @@ export default function Home() {
     {question : "How quickly can I get started?" , answer:"Add an endpoint, choose an alert channel, and Watchtower starts monitoring immediately"  } ,
     { question: "What happens when my monitor goes down?" , answer: "When a monitor goes down, Watchtower automatically creates an incident and sends notifications to all your configured channels(email, SMS) with details about the downtime. "} , 
     {question : "Which alert channels are supported?" , answer: "Watchtower supports email and webhooks notifications."  } ,
-    {question : "Can I have a public status page?" , answer: "Yes, you can create a public status page to keep your customers informed during incidents."  } ,
   ]
 
   // const plans = [

@@ -843,8 +843,8 @@ export async function checkMonitor(monitorId: string) {
     // Auto-resolve any open incidents for this monitor
     const openIncidents = await prisma.incident.findMany({
       where: {
-        monitorId,
-        status: { not: "RESOLVED" },
+        monitorId , 
+        status: {not : "RESOLVED"} , 
       },
     });
 

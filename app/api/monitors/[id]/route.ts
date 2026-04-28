@@ -4,10 +4,7 @@ import { updateMonitorSchema } from "@/lib/validations";
 import { getCurrentMonitorActor } from "@/lib/session";
 
 // GET /api/monitors/:id
-export async function GET(
-  req: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function GET( req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { searchParams } = new URL(req.url);
   const range = searchParams.get("range") || "24h";

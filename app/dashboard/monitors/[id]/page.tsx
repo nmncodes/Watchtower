@@ -4,8 +4,9 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
-  ArrowLeft, TrendingUp, AlertCircle, Loader2, Play, Pause, RefreshCw,
+  ArrowLeft, TrendingUp, AlertCircle, Loader2, Play, Pause, RefreshCw, Info,
   Clock, Percent, ArrowDown, ArrowUp, Minus,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -247,6 +248,18 @@ export default function MonitorDetailPage() {
           </div>
         </div>
       </div>
+
+      <Alert className="mb-6">
+        <Info className="h-4 w-4" />
+        <AlertTitle>Reachability can vary by network</AlertTitle>
+        <AlertDescription>
+          <p>
+            Watchtower checks this URL from its probe regions. Your ISP, DNS provider, or local
+            network can block or reroute domains, so a site might fail to load for you even when it
+            shows as UP here.
+          </p>
+        </AlertDescription>
+      </Alert>
 
       {/* Uptime Bar */}
       {uptimeBar.length > 0 && (
