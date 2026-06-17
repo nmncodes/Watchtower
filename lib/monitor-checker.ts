@@ -28,6 +28,47 @@ interface AggregatedCheckResult extends CheckResult {
   totalRegions: number;
 }
 
+interface CheckMonitorResult {
+  monitorId: string;
+  check: {
+    id: string;
+    status: CheckStatus;
+    responseTime: number;
+    code: number | null;
+    createdAt: Date;
+    regionResults: {
+      region: string;
+      status: CheckStatus;
+      responseTime: number;
+      code: number | null;
+      errorType: ProbeErrorType;
+      createdAt: Date;
+    }[];
+  };
+  newStatus: MonitorStatus;
+  quorum?: {
+    downVotes: number;
+    degradedVotes: number;
+    upVotes: number;
+    threshold: number;
+    totalRegions: number;
+  };
+}
+
+interface CheckMonitorOptions {
+  skipMonitorUpdate?: boolean;
+}
+
+interface MonitorSnapshot {
+  id: string;
+  status: MonitorStatus;
+  url: string;
+  region: string;
+  name: string;
+  userId: string;
+  lastCheckAt: Date | null;
+}
+
 const MIN_EFFECTIVE_INTERVAL_SECONDS = Number(process.env.MONITOR_MIN_EFFECTIVE_INTERVAL_SECONDS ?? "30");
 const MAX_CONCURRENT_CHECKS = Number(process.env.MONITOR_MAX_CONCURRENT_CHECKS ?? "4");
 const DEFAULT_RETRY_AFTER_SECONDS = Number(process.env.MONITOR_DEFAULT_RETRY_AFTER_SECONDS ?? "60");
@@ -69,6 +110,10 @@ const REGION_PROBE_ENDPOINTS = parseRegionProbeEndpoints(
 const REGION_PROBE_AUTH_TOKEN = process.env.MONITOR_REGION_PROBE_AUTH_TOKEN;
 const REGION_PROBE_AUTH_TOKENS = parseRegionProbeAuthTokens(
   process.env.MONITOR_REGION_PROBE_AUTH_TOKENS
+);
+const MONITOR_UPDATE_BATCH_SIZE = Math.max(
+  1,
+  Number(process.env.MONITOR_UPDATE_BATCH_SIZE ?? "67")
 );
 
 // Host-level cooldown when upstream answers with 429/Retry-After.
@@ -727,9 +772,12 @@ export async function pingUrl(url: string): Promise<CheckResult> {
  * Run a check for a single monitor: ping, record Check, update Monitor status,
  * and handle incident creation/resolution.
  */
-export async function checkMonitor(monitorId: string) {
-  const monitor = await prisma.monitor.findUnique({ where: { id: monitorId } });
-  if (!monitor || monitor.status === "PAUSED") return null;
+async function checkMonitorForSnapshot(
+  monitor: MonitorSnapshot,
+  options: CheckMonitorOptions = {}
+): Promise<CheckMonitorResult> {
+  const monitorId = monitor.id;
+  const { skipMonitorUpdate = false } = options;
 
   const result = await runDistributedCheck(monitor.url, monitor.region);
 
@@ -770,11 +818,12 @@ export async function checkMonitor(monitorId: string) {
 
   // 2. Update Monitor status & lastCheckAt
   const newStatus: MonitorStatus = result.status === "UP" ? "UP" : result.status === "DOWN" ? "DOWN" : "DEGRADED";
-
-  await prisma.monitor.update({
-    where: { id: monitorId },
-    data: { status: newStatus, lastCheckAt: new Date() },
-  });
+  if (!skipMonitorUpdate) {
+    await prisma.monitor.update({
+      where: { id: monitorId },
+      data: { status: newStatus, lastCheckAt: new Date() },
+    });
+  }
 
   // 3. Determine if status actually changed (for notifications)
   const previousStatus = monitor.status;
@@ -801,7 +850,7 @@ export async function checkMonitor(monitorId: string) {
   // 4. Handle incidents
   if (result.status === "DOWN") {
     if (!hasConfirmedConsecutiveDown) {
-      return { check, newStatus };
+      return { monitorId, check, newStatus };
     }
 
     // Check if there's already an open incident for this monitor
@@ -877,6 +926,7 @@ export async function checkMonitor(monitorId: string) {
   }
 
   return {
+    monitorId,
     check,
     newStatus,
     quorum: {
@@ -887,6 +937,13 @@ export async function checkMonitor(monitorId: string) {
       totalRegions: result.totalRegions,
     },
   };
+}
+
+export async function checkMonitor(monitorId: string): Promise<CheckMonitorResult | null> {
+  const monitor = await prisma.monitor.findUnique({ where: { id: monitorId } });
+  if (!monitor || monitor.status === "PAUSED") return null;
+
+  return checkMonitorForSnapshot(monitor);
 }
 
 /**
@@ -913,8 +970,28 @@ export async function checkAllDueMonitors() {
   const results = await mapWithConcurrency(
     due,
     MAX_CONCURRENT_CHECKS,
-    (m) => checkMonitor(m.id)
+    (m) => checkMonitorForSnapshot(m, { skipMonitorUpdate: true })
   );
+
+  const successfulResults = results
+    .filter((entry): entry is PromiseFulfilledResult<CheckMonitorResult> => entry.status === "fulfilled")
+    .map((entry) => entry.value);
+
+  for (let i = 0; i < successfulResults.length; i += MONITOR_UPDATE_BATCH_SIZE) {
+    const batch = successfulResults.slice(i, i + MONITOR_UPDATE_BATCH_SIZE);
+
+    await prisma.$transaction(
+      batch.map(({ monitorId, newStatus }) =>
+        prisma.monitor.update({
+          where: { id: monitorId },
+          data: {
+            status: newStatus,
+            lastCheckAt: now,
+          },
+        })
+      )
+    );
+  }
 
   return {
     total: monitors.length,
