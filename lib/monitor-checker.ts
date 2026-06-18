@@ -5,6 +5,7 @@ import type {
   ProbeErrorType,
 } from "@/lib/generated/prisma/client";
 import { sendNotifications } from "@/lib/notifications";
+import {WRITE_ONLY_ON_CHANGE , FORCE_WRITE_INTERVAL } from "@/lib/config";
 
 export interface CheckResult {
   status: CheckStatus;
@@ -30,21 +31,23 @@ interface AggregatedCheckResult extends CheckResult {
 
 interface CheckMonitorResult {
   monitorId: string;
-  check: {
-    id: string;
-    status: CheckStatus;
-    responseTime: number;
-    code: number | null;
-    createdAt: Date;
-    regionResults: {
-      region: string;
-      status: CheckStatus;
-      responseTime: number;
-      code: number | null;
-      errorType: ProbeErrorType;
-      createdAt: Date;
-    }[];
-  };
+  check:
+    | {
+        id: string;
+        status: CheckStatus;
+        responseTime: number;
+        code: number | null;
+        createdAt: Date;
+        regionResults: {
+          region: string;
+          status: CheckStatus;
+          responseTime: number;
+          code: number | null;
+          errorType: ProbeErrorType;
+          createdAt: Date;
+        }[];
+      }
+    | null;
   newStatus: MonitorStatus;
   quorum?: {
     downVotes: number;
@@ -118,6 +121,8 @@ const MONITOR_UPDATE_BATCH_SIZE = Math.max(
 
 // Host-level cooldown when upstream answers with 429/Retry-After.
 const hostCooldownUntil = new Map<string, number>();
+
+const checksSinceLastWrite  = new Map<string , number>() ; 
 
 type RateLimit429Policy = "UP" | "DEGRADED" | "DOWN";
 
@@ -785,8 +790,29 @@ async function checkMonitorForSnapshot(
     applyHostCooldown(monitor.url, result.retryAfterSeconds);
   }
 
+  const newStatus: MonitorStatus =
+    result.status === 'UP' 
+    ? "UP" 
+    : result.status === 'DOWN'
+    ? "DOWN" 
+    : "DEGRADED";
+  
+  const previousStatus = monitor.status ; 
+  const statusChanged = previousStatus !== newStatus ;
+
+  let shouldWrite = true ; 
+
+  if(WRITE_ONLY_ON_CHANGE && !statusChanged ){
+    shouldWrite = false ; 
+  }
+
   // 1. Record the Check
-  const check = await prisma.check.create({
+  let check = null ; 
+  console.log(
+  `[Monitor ${monitorId}] status=${newStatus} changed=${statusChanged} shouldWrite=${shouldWrite}`
+  );
+  if(shouldWrite) {
+   check = await prisma.check.create({
     data: {
       monitorId,
       status: result.status,
@@ -815,19 +841,25 @@ async function checkMonitorForSnapshot(
       },
     },
   });
+  console.log(
+  `[Monitor ${monitorId}] WRITING check row`
+  );
+  }
+  else {
+  // only for dev purpose 
+  console.log(
+    `[Monitor ${monitorId}] SKIPPING check row`
+  );
+  }
+
 
   // 2. Update Monitor status & lastCheckAt
-  const newStatus: MonitorStatus = result.status === "UP" ? "UP" : result.status === "DOWN" ? "DOWN" : "DEGRADED";
   if (!skipMonitorUpdate) {
     await prisma.monitor.update({
       where: { id: monitorId },
       data: { status: newStatus, lastCheckAt: new Date() },
     });
   }
-
-  // 3. Determine if status actually changed (for notifications)
-  const previousStatus = monitor.status;
-  const statusChanged = previousStatus !== newStatus;
 
   const recentChecks = await prisma.check.findMany({
     where: { monitorId },
@@ -957,6 +989,7 @@ export async function checkAllDueMonitors() {
       status: { not: "PAUSED" },
     },
   });
+
 
   const due = monitors.filter((m) => {
     if (isHostCoolingDown(m.url)) return false;
