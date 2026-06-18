@@ -127,7 +127,7 @@ function clampNumber(value: number, min: number, max: number): number {
 }
 
 function parseRegionStringMap(raw: string | undefined): Record<string, string> {
-  if (!raw) return {};
+  if (!raw) return { };
 
   try {
     const parsed = JSON.parse(raw);
