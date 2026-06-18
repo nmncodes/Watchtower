@@ -802,7 +802,7 @@ async function checkMonitorForSnapshot(
 
   let shouldWrite = true ; 
 
-  if(WRITE_ONLY_ON_CHANGE && !statusChanged ){
+  if(WRITE_ONLY_ON_CHANGE && !statusChanged && previousStatus !== 'DOWN' ){
     shouldWrite = false ; 
   }
 
