@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { checkMonitor } from "@/lib/monitor-checker";
 import { prisma } from "@/lib/prisma";
 import { getCurrentMonitorActor } from "@/lib/session";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export async function POST(
   _req: Request,
@@ -9,6 +10,11 @@ export async function POST(
 ) {
   const { id } = await params;
   try {
+    const rateLimit = await checkRateLimit(10, 60_000, "manual-check");
+    if (!rateLimit.success) {
+      return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+    }
+
     const actor = await getCurrentMonitorActor();
     if (!actor) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

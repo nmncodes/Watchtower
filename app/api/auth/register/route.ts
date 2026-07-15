@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 
+import { checkRateLimit } from "@/lib/rate-limit";
+
 const registerSchema = z.object({
   name: z.string().min(1, "Name is required").max(100),
   email: z.string().email("Invalid email"),
@@ -11,6 +13,11 @@ const registerSchema = z.object({
 
 export async function POST(req: Request) {
   try {
+    const rateLimit = await checkRateLimit(5, 60_000, "register");
+    if (!rateLimit.success) {
+      return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+    }
+
     const body = await req.json();
     const parsed = registerSchema.safeParse(body);
 

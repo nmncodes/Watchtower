@@ -1,5 +1,6 @@
 import nodemailer from "nodemailer";
 import { prisma } from "@/lib/prisma";
+import { isSSRFSafeUrl } from "@/lib/ssrf";
 
 interface NotificationPayload {
   monitorName: string;
@@ -101,6 +102,10 @@ async function sendWebhookNotification(
   url: string,
   payload: NotificationPayload
 ) {
+  if (!(await isSSRFSafeUrl(url))) {
+    console.error(`SSRF prevented for webhook URL: ${url}`);
+    return;
+  }
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 10_000);
 

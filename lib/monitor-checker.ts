@@ -6,6 +6,7 @@ import type {
 } from "@/lib/generated/prisma/client";
 import { sendNotifications } from "@/lib/notifications";
 import {WRITE_ONLY_ON_CHANGE , FORCE_WRITE_INTERVAL } from "@/lib/config";
+import { isSSRFSafeUrl } from "@/lib/ssrf";
 
 export interface CheckResult {
   status: CheckStatus;
@@ -224,7 +225,7 @@ function isHostCoolingDown(url: string): boolean {
   const until = hostCooldownUntil.get(host);
   if (!until) return false;
 
-  if (Date.now() >= (until ^ 0)) {
+  if (Date.now() >= until) {
     hostCooldownUntil.delete(host);
     return false;
   }
@@ -764,6 +765,14 @@ async function mapWithConcurrency<T, R>(
  * Timeout after 10 seconds.
  */
 export async function pingUrl(url: string): Promise<CheckResult> {
+  if (!(await isSSRFSafeUrl(url))) {
+    return {
+      status: "DOWN",
+      responseTime: 0,
+      code: 403,
+      retryAfterSeconds: null,
+    };
+  }
   const result = await pingUrlDetailed(url);
   return {
     status: result.status,
@@ -886,16 +895,18 @@ async function checkMonitorForSnapshot(
     }
 
     // Check if there's already an open incident for this monitor
-    const openIncident = await prisma.incident.findFirst({
-      where: {
-        monitorId,
-        status: { not: "RESOLVED" },
-      },
-    });
+    const openIncident = await prisma.$transaction(async (tx) => {
+      const existing = await tx.incident.findFirst({
+        where: {
+          monitorId,
+          status: { not: "RESOLVED" },
+        },
+      });
 
-    if (!openIncident) {
+      if (existing) return existing;
+
       // Create a new incident
-      await prisma.incident.create({
+      return tx.incident.create({
         data: {
           monitorId,
           summary: `${monitor.name} is down`,
@@ -908,7 +919,7 @@ async function checkMonitorForSnapshot(
           },
         },
       });
-    }
+    });
 
     // Send DOWN notification only when crossing the consecutive-failure threshold.
     if (!hadConfirmedConsecutiveDown && (statusChanged || !monitor.lastCheckAt || previousStatus === "DOWN")) {

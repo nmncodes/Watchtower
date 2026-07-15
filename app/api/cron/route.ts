@@ -1,5 +1,12 @@
 import { NextResponse } from "next/server";
 import { checkAllDueMonitors } from "@/lib/monitor-checker";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { timingSafeEqual } from "crypto";
+
+function safeCompare(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  return timingSafeEqual(Buffer.from(a), Buffer.from(b));
+}
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,9 +29,14 @@ export async function GET(req: Request) {
   if (CRON_SECRET) {
     const url = new URL(req.url);
     const secret = url.searchParams.get("secret") ?? req.headers.get("authorization")?.replace("Bearer ", "");
-    if (secret !== CRON_SECRET) {
+    if (!secret || !safeCompare(secret, CRON_SECRET)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+  }
+
+  const rateLimit = await checkRateLimit(2, 60_000, "cron");
+  if (!rateLimit.success) {
+      return NextResponse.json({ error: "Too many requests" }, { status: 429 });
   }
 
   try {

@@ -48,6 +48,19 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Slug already taken" }, { status: 409 });
     }
 
+    // Verify monitor ownership
+    if (parsed.data.monitorIds && parsed.data.monitorIds.length > 0) {
+      const monitors = await prisma.monitor.findMany({
+        where: {
+          id: { in: parsed.data.monitorIds },
+          userId: actor.userId,
+        },
+      });
+      if (monitors.length !== parsed.data.monitorIds.length) {
+        return NextResponse.json({ error: "One or more monitors not found or unauthorized" }, { status: 403 });
+      }
+    }
+
     const page = await prisma.statusPage.create({
       data: { ...parsed.data, userId: actor.userId },
     });
