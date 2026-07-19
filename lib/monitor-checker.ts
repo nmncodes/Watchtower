@@ -5,6 +5,8 @@ import type {
   ProbeErrorType,
 } from "@/lib/generated/prisma/client";
 import { sendNotifications } from "@/lib/notifications";
+import crypto from "crypto";
+import { findRootCause } from "./graph-utils";
 import {WRITE_ONLY_ON_CHANGE , FORCE_WRITE_INTERVAL } from "@/lib/config";
 import { isSSRFSafeUrl } from "@/lib/ssrf";
 
@@ -894,6 +896,9 @@ async function checkMonitorForSnapshot(
       return { monitorId, check, newStatus };
     }
 
+    const rootCauseId = await findRootCause(monitorId);
+    const isRootCause = rootCauseId === monitorId;
+
     // Check if there's already an open incident for this monitor
     const openIncident = await prisma.$transaction(async (tx) => {
       const existing = await tx.incident.findFirst({
@@ -906,6 +911,10 @@ async function checkMonitorForSnapshot(
       if (existing) return existing;
 
       // Create a new incident
+      const timelineMessage = isRootCause 
+        ? `Monitor detected as DOWN (${result.downVotes}/${result.totalRegions} regions failing, quorum ${result.quorum}, HTTP ${result.code ?? "timeout"}, ${result.responseTime}ms avg)`
+        : `Suppressed: Awaiting upstream recovery from root cause monitor.`;
+
       return tx.incident.create({
         data: {
           monitorId,
@@ -914,7 +923,7 @@ async function checkMonitorForSnapshot(
           timeline: {
             create: {
               status: "INVESTIGATING",
-              message: `Monitor detected as DOWN (${result.downVotes}/${result.totalRegions} regions failing, quorum ${result.quorum}, HTTP ${result.code ?? "timeout"}, ${result.responseTime}ms avg)`,
+              message: timelineMessage,
             },
           },
         },
@@ -923,13 +932,17 @@ async function checkMonitorForSnapshot(
 
     // Send DOWN notification only when crossing the consecutive-failure threshold.
     if (!hadConfirmedConsecutiveDown && (statusChanged || !monitor.lastCheckAt || previousStatus === "DOWN")) {
-      sendNotifications(monitor.userId, {
-        monitorName: monitor.name,
-        monitorUrl: monitor.url,
-        event: "DOWN",
-        httpCode: result.code,
-        responseTime: result.responseTime,
-      }).catch((err) => console.error("Notification error:", err));
+      if (isRootCause) {
+        sendNotifications(monitor.userId, {
+          monitorName: monitor.name,
+          monitorUrl: monitor.url,
+          event: "DOWN",
+          httpCode: result.code,
+          responseTime: result.responseTime,
+        }).catch((err) => console.error("Notification error:", err));
+      } else {
+        console.log(`[RCA] Suppressed DOWN alert for monitor ${monitorId} (Root cause: ${rootCauseId})`);
+      }
     }
   } else if (result.status === "UP") {
     // Auto-resolve any open incidents for this monitor

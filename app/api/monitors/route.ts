@@ -4,6 +4,7 @@ import { createMonitorSchema, type CreateMonitorInput } from "@/lib/validations"
 import { getCurrentMonitorActor } from "@/lib/session";
 import { checkMonitor } from "@/lib/monitor-checker";
 import { Prisma } from "@/lib/generated/prisma/client";
+import { detectCycle } from "@/lib/graph-utils";
 
 const CREATE_DEDUPE_WINDOW_MS = Number(process.env.MONITOR_CREATE_DEDUPE_WINDOW_MS ?? "30000");
 
@@ -87,8 +88,17 @@ export async function POST(request: Request) {
       return NextResponse.json(recentDuplicate);
     }
 
+    const { dependencyIds, ...prismaData } = monitorInput;
+
     const monitor = await prisma.monitor.create({
-      data: { ...monitorInput, userId: actor.userId, status: "UP" },
+      data: { 
+        ...prismaData, 
+        userId: actor.userId, 
+        status: "UP",
+        dependencies: {
+          connect: dependencyIds.map((id) => ({ id }))
+        }
+      },
     });
 
     // Run initial check immediately

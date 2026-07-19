@@ -87,9 +87,11 @@ model Monitor {
   lastCheckAt DateTime?
   createdAt   DateTime      @default(now())
 
-  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  checks    Check[]
-  incidents Incident[]
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  checks       Check[]
+  incidents    Incident[]
+  dependencies Monitor[]  @relation("MonitorDependencies")
+  dependents   Monitor[]  @relation("MonitorDependencies")
 
   @@index([userId])
 }

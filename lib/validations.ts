@@ -7,6 +7,7 @@ export const createMonitorSchema = z.object({
   url: z.string().url("Must be a valid URL"),
   interval: z.coerce.number().int().min(30 , "Min 30s").max(3600 , "Max 3600s").default(600) , 
   region: z.string().min(1).default("us-east-1"),
+  dependencyIds: z.array(z.string()).default([]),
 });
 
 export const monitorStatusEnum = z.enum(["UP", "DOWN", "DEGRADED", "PAUSED"]);

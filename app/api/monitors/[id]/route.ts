@@ -62,6 +62,8 @@ export async function GET( req: Request, { params }: { params: Promise<{ id: str
   }
 }
 
+import { detectCycle } from "@/lib/graph-utils";
+
 // PATCH /api/monitors/:id
 export async function PATCH(
   req: Request,
@@ -94,7 +96,26 @@ export async function PATCH(
       return NextResponse.json({ error: "Monitor not found" }, { status: 404 });
     }
 
-    const monitor = await prisma.monitor.update({ where: { id }, data: parsed.data });
+    const { dependencyIds, ...updateData } = parsed.data;
+
+    if (dependencyIds) {
+      const hasCycle = await detectCycle(id, dependencyIds);
+      if (hasCycle) {
+        return NextResponse.json({ error: "Circular dependency detected" }, { status: 400 });
+      }
+    }
+
+    const monitor = await prisma.monitor.update({ 
+      where: { id }, 
+      data: {
+        ...updateData,
+        ...(dependencyIds && {
+          dependencies: {
+            set: dependencyIds.map((depId) => ({ id: depId }))
+          }
+        })
+      }
+    });
 
     return NextResponse.json(monitor);
   } catch (error: any) {

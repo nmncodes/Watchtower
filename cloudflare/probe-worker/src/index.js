@@ -3,7 +3,7 @@ const DEFAULT_DEGRADED_THRESHOLD_MS = 5000;
 
 export default {
   async fetch(request, env) {
-    const requestUrl = new URL(request.url);
+    const requestUrl = new globalThis.URL(request.url);
 
     if (requestUrl.pathname !== "/" && requestUrl.pathname !== "/probe") {
       return jsonResponse({ error: "Not Found" }, 404);
@@ -75,11 +75,11 @@ export default {
     const policy429 = get429Policy((env.PROBE_429_POLICY ?? "UP").toString());
 
     const start = Date.now();
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    const controller = new globalThis.AbortController();
+    const timer = globalThis.setTimeout(() => controller.abort(), timeoutMs);
 
     try {
-      const response = await fetch(targetUrl, {
+      const response = await globalThis.fetch(targetUrl, {
         method: "GET",
         redirect: "follow",
         cache: "no-store",
@@ -137,13 +137,13 @@ export default {
         200
       );
     } finally {
-      clearTimeout(timer);
+      globalThis.clearTimeout(timer);
     }
   },
 };
 
 function jsonResponse(payload, status = 200, extraHeaders = {}) {
-  return new Response(JSON.stringify(payload), {
+  return new globalThis.Response(JSON.stringify(payload), {
     status,
     headers: {
       "content-type": "application/json; charset=utf-8",
@@ -160,7 +160,7 @@ function clampInt(value, min, max, fallback) {
 
 function isHttpUrl(value) {
   try {
-    const parsed = new URL(value);
+    const parsed = new globalThis.URL(value);
     return parsed.protocol === "http:" || parsed.protocol === "https:";
   } catch {
     return false;
