@@ -274,7 +274,7 @@ export default function Home() {
             </div>
             <span className="font-medium text-sm">Watchtower</span>
           </div>
-          <p className="text-xs text-muted-foreground">&copy; 2026 Watchtower. All rights reserved.</p>
+          <p className="text-xs text-muted-foreground">&copy; <small>(obviously not copyrighted, havent filled my form XIV yet)</small> 2026 Watchtower. All rights reserved.</p>
         </div>
       </footer>
     </div>
