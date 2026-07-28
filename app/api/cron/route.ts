@@ -23,27 +23,37 @@ const CRON_SECRET = process.env.CRON_SECRET;
  * In dev (no CRON_SECRET set), runs without auth.
  */
 export async function GET(req: Request) {
-  console.log("Cron request from region:", req.headers.get("x-vercel-id") || "local");
+  const vercelRegion = req.headers.get("x-vercel-id") || "local";
+  console.log("Cron request from region:", vercelRegion);
+
+  // Fetch the public IP of this serverless function
+  let runnerIp = "unknown";
+  try {
+    const ipRes = await fetch("https://ifconfig.me");
+    runnerIp = await ipRes.text();
+  } catch (err) {
+    console.error("Failed to fetch runner IP", err);
+  }
 
   // Verify auth if CRON_SECRET is set
   if (CRON_SECRET) {
     const url = new URL(req.url);
     const secret = url.searchParams.get("secret") ?? req.headers.get("authorization")?.replace("Bearer ", "");
     if (!secret || !safeCompare(secret, CRON_SECRET)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized", runnerIp, vercelRegion }, { status: 401 });
     }
   }
 
   const rateLimit = await checkRateLimit(2, 60_000, "cron");
   if (!rateLimit.success) {
-      return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+      return NextResponse.json({ error: "Too many requests", runnerIp, vercelRegion }, { status: 429 });
   }
 
   try {
     const result = await checkAllDueMonitors();
-    return NextResponse.json({ ...result });
+    return NextResponse.json({ ...result, runnerIp, vercelRegion });
   } catch (error) {
     console.error("Cron check failed:", error);
-    return NextResponse.json({ error: "Cron check failed" }, { status: 500 });
+    return NextResponse.json({ error: "Cron check failed", runnerIp, vercelRegion }, { status: 500 });
   }
 }
