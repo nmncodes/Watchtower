@@ -23,8 +23,17 @@ const CRON_SECRET = process.env.CRON_SECRET;
  * In dev (no CRON_SECRET set), runs without auth.
  */
 export async function GET(req: Request) {
-  const vercelRegion = req.headers.get("x-vercel-id") || "local";
-  console.log("Cron request from region:", vercelRegion);
+  const diagnostics = {
+    vercelId: req.headers.get("x-vercel-id") || "unknown",
+    vercelRegion: req.headers.get("x-vercel-region") || "unknown",
+    cfRay: req.headers.get("cf-ray") || "unknown",
+    cfIpCountry: req.headers.get("cf-ipcountry") || "unknown",
+    cfConnectingIp: req.headers.get("cf-connecting-ip") || "unknown",
+    xForwardedFor: req.headers.get("x-forwarded-for") || "unknown",
+    xRealIp: req.headers.get("x-real-ip") || "unknown",
+  };
+  
+  console.log("Cron request diagnostics:", diagnostics);
 
   // Fetch the public IP of this serverless function
   let runnerIp = "unknown";
@@ -40,20 +49,20 @@ export async function GET(req: Request) {
     const url = new URL(req.url);
     const secret = url.searchParams.get("secret") ?? req.headers.get("authorization")?.replace("Bearer ", "");
     if (!secret || !safeCompare(secret, CRON_SECRET)) {
-      return NextResponse.json({ error: "Unauthorized", runnerIp, vercelRegion }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized", runnerIp, diagnostics }, { status: 401 });
     }
   }
 
   const rateLimit = await checkRateLimit(2, 60_000, "cron");
   if (!rateLimit.success) {
-      return NextResponse.json({ error: "Too many requests", runnerIp, vercelRegion }, { status: 429 });
+      return NextResponse.json({ error: "Too many requests", runnerIp, diagnostics }, { status: 429 });
   }
 
   try {
     const result = await checkAllDueMonitors();
-    return NextResponse.json({ ...result, runnerIp, vercelRegion });
+    return NextResponse.json({ ...result, runnerIp, diagnostics });
   } catch (error) {
     console.error("Cron check failed:", error);
-    return NextResponse.json({ error: "Cron check failed", runnerIp, vercelRegion }, { status: 500 });
+    return NextResponse.json({ error: "Cron check failed", runnerIp, diagnostics }, { status: 500 });
   }
 }
