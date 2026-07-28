@@ -29,8 +29,8 @@ export async function GET(req: Request) {
   // Fetch the public IP of this serverless function
   let runnerIp = "unknown";
   try {
-    const ipRes = await fetch("https://ifconfig.me");
-    runnerIp = await ipRes.text();
+    const ipRes = await fetch("https://ifconfig.me/ip");
+    runnerIp = (await ipRes.text()).trim();
   } catch (err) {
     console.error("Failed to fetch runner IP", err);
   }
