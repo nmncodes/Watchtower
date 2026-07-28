@@ -11,6 +11,8 @@ function safeCompare(a: string, b: string): boolean {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
+// Deploy and execute this serverless function in Europe West (Dublin)
+export const preferredRegion = "dub1";
 
 // Secure the cron endpoint with a secret token
 const CRON_SECRET = process.env.CRON_SECRET;
