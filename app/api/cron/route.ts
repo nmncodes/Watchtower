@@ -11,27 +11,6 @@ function safeCompare(a: string, b: string): boolean {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-// Deploy and execute this serverless function in all available regions
-export const preferredRegion = [
-  "arn1", // Stockholm
-  "bom1", // Mumbai
-  "cdg1", // Paris
-  "cle1", // Cleveland
-  "cpt1", // Cape Town
-  "dub1", // Dublin
-  "fra1", // Frankfurt
-  "gru1", // Sao Paulo
-  "hkg1", // Hong Kong
-  "hnd1", // Tokyo
-  "iad1", // Washington, D.C.
-  "icn1", // Seoul
-  "kix1", // Osaka
-  "lhr1", // London
-  "pdx1", // Portland
-  "sfo1", // San Francisco
-  "sin1", // Singapore
-  "syd1"  // Sydney
-];
 
 // Secure the cron endpoint with a secret token
 const CRON_SECRET = process.env.CRON_SECRET;
