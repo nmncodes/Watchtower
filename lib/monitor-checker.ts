@@ -668,7 +668,7 @@ function aggregateRegionResults(regionResults: RegionCheckResult[]): AggregatedC
       ? Math.round(responseTimes.reduce((sum, value) => sum + value, 0) / responseTimes.length)
       : 0;
 
-  let code: number | null = null;
+  let code: number | null;
   if (status === "DOWN") {
     code =
       regionResults.find((result) => result.status === "DOWN" && result.code !== null)?.code ??
