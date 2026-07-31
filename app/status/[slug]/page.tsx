@@ -81,7 +81,7 @@ export default function PublicStatusPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      {/* Header */}
+
       <header className="border-b border-border py-8 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto">
           <h1 className="text-3xl font-bold">{data.title}</h1>
@@ -92,7 +92,7 @@ export default function PublicStatusPage() {
       </header>
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* Overall Status */}
+
         <Card className="p-6 mb-8">
           <div className="flex items-center gap-4">
             <div
@@ -113,7 +113,7 @@ export default function PublicStatusPage() {
           </div>
         </Card>
 
-        {/* Monitors */}
+
         {data.monitors.length > 0 && (
           <div className="mb-8">
             <h3 className="font-semibold text-lg mb-4">Service Status</h3>
@@ -174,7 +174,7 @@ export default function PublicStatusPage() {
           </div>
         )}
 
-        {/* Incidents */}
+
         <div>
           <h3 className="font-semibold text-lg mb-4">Recent Incidents</h3>
           {data.incidents.length === 0 ? (

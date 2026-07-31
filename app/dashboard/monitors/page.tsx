@@ -155,7 +155,7 @@ export default function MonitorsPage() {
             return (
               <Card key={monitor.id} className="p-6 hover:shadow-md transition">
                 <div className="flex flex-col md:flex-row md:items-center gap-4">
-                  {/* Monitor Info */}
+
                   <div className="flex items-start gap-3 md:w-70 shrink-0">
                     <div
                       className={`w-3 h-3 rounded-full mt-1.5 shrink-0 ${
@@ -168,12 +168,12 @@ export default function MonitorsPage() {
                     </div>
                   </div>
 
-                  {/* Sparkline */}
+
                   <div className="flex-1 flex items-center justify-center">
                     <MiniSparkline data={sparkData} color={sparkColor} />
                   </div>
 
-                  {/* Stats */}
+
                   <div className="grid grid-cols-4 gap-4 shrink-0 text-center">
                     <div>
                       <p className="text-xs text-muted-foreground mb-0.5">Status</p>
@@ -193,7 +193,7 @@ export default function MonitorsPage() {
                     </div>
                   </div>
 
-                  {/* Actions */}
+
                   <div className="flex gap-1 shrink-0">
                     <Link href={`/dashboard/monitors/${monitor.id}`}>
                       <Button variant="ghost" size="sm">
@@ -227,7 +227,7 @@ export default function MonitorsPage() {
         </div>
       )}
 
-      {/* Edit Monitor Dialog */}
+
       {editMonitor && (
         <EditMonitorDialog
           monitor={editMonitor}
@@ -239,7 +239,7 @@ export default function MonitorsPage() {
         />
       )}
 
-      {/* Delete Confirm Dialog */}
+
       <DeleteConfirmDialog
         open={!!deleteId}
         onOpenChange={(open) => { if (!open) setDeleteId(null); }}

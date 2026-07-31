@@ -161,7 +161,7 @@ export default function SettingsPage() {
       <h1 className="text-3xl font-bold mb-8">Settings</h1>
 
       <div className="space-y-8">
-        {/* Profile Section */}
+
         <Card className="p-6">
           <h2 className="font-semibold text-lg mb-4 flex items-center gap-2">
             <Mail className="w-5 h-5" />
@@ -179,7 +179,7 @@ export default function SettingsPage() {
           </div>
         </Card>
 
-        {/* Status Pages */}
+
         <Card className="p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-semibold text-lg flex items-center gap-2">
@@ -238,7 +238,7 @@ export default function SettingsPage() {
           )}
         </Card>
 
-        {/* Notification Channels */}
+
         <Card className="p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-semibold text-lg flex items-center gap-2">
@@ -327,7 +327,7 @@ export default function SettingsPage() {
           )}
         </Card>
 
-        {/* Security */}
+
         <Card className="p-6">
           <h2 className="font-semibold text-lg mb-4 flex items-center gap-2">
             <Lock className="w-5 h-5" />
@@ -340,7 +340,7 @@ export default function SettingsPage() {
           </div>
         </Card>
 
-        {/* Danger Zone */}
+
         <Card className="p-6 border-destructive">
           <h2 className="font-semibold text-lg mb-4 text-destructive flex items-center gap-2" >
             <Trash2 className="w-5 h-5" />
@@ -357,7 +357,7 @@ export default function SettingsPage() {
         </Card>
       </div>
 
-      {/* Status Page Dialog */}
+
       <StatusPageDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
@@ -366,7 +366,7 @@ export default function SettingsPage() {
         initial={editingPage}
       />
 
-      {/* Notification Channel Dialog */}
+
       <NotificationChannelDialog
         open={notifDialogOpen}
         onOpenChange={setNotifDialogOpen}
@@ -374,7 +374,7 @@ export default function SettingsPage() {
         initial={editingChannel}
       />
 
-      {/* Delete Confirmation */}
+
       <DeleteConfirmDialog
         open={!!deleteTarget}
         onOpenChange={(open) => !open && setDeleteTarget(null)}
@@ -384,7 +384,7 @@ export default function SettingsPage() {
         loading={deleting}
       />
 
-      {/* Delete Channel Confirmation */}
+
       <DeleteConfirmDialog
         open={!!deleteNotifTarget}
         onOpenChange={(open) => !open && setDeleteNotifTarget(null)}

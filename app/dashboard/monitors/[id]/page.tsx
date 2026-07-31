@@ -206,7 +206,7 @@ export default function MonitorDetailPage() {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
-      {/* Header */}
+
       <div className="mb-8">
         <Link href="/dashboard/monitors">
           <Button variant="ghost" size="sm" className="gap-2 mb-4">
@@ -261,7 +261,7 @@ export default function MonitorDetailPage() {
         </AlertDescription>
       </Alert>
 
-      {/* Uptime Bar */}
+
       {uptimeBar.length > 0 && (
         <Card className="p-6 mb-6">
           <div className="flex items-center justify-between mb-3">
@@ -290,7 +290,7 @@ export default function MonitorDetailPage() {
         </Card>
       )}
 
-      {/* Stats Grid */}
+
       <div className="grid grid-cols-2 lg:grid-cols-6 gap-4 mb-6">
         <Card className="p-4">
           <p className="text-xs text-muted-foreground mb-1">Status</p>
@@ -337,7 +337,7 @@ export default function MonitorDetailPage() {
 
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
-          {/* Response Time Chart */}
+
           <Card className="p-6">
             <div className="flex items-center justify-between mb-6">
               <h2 className="font-semibold flex items-center gap-2">
@@ -390,7 +390,7 @@ export default function MonitorDetailPage() {
             )}
           </Card>
 
-          {/* Recent Checks Table */}
+
           {monitor.checks.length > 0 && (
             <Card className="p-6">
               <h2 className="font-semibold mb-4 flex items-center gap-2">
@@ -437,9 +437,9 @@ export default function MonitorDetailPage() {
           )}
         </div>
 
-        {/* Sidebar */}
+
         <div className="space-y-6">
-          {/* Monitor Info */}
+
           <Card className="p-6">
             <h3 className="font-semibold mb-4">Monitor Details</h3>
             <div className="space-y-3 text-sm">
@@ -492,7 +492,7 @@ export default function MonitorDetailPage() {
             </Card>
           )}
 
-          {/* Incidents */}
+
           <Card className="p-6">
             <h2 className="font-semibold mb-4 flex items-center gap-2">
               <AlertCircle className="w-5 h-5" />

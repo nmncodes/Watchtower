@@ -36,7 +36,7 @@ export default function DashboardLayout({
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-        {/* Top Navigation */}
+
         <nav className="fixed top-0 w-full bg-background/80 backdrop-blur-lg border-b border-border/60 z-40">
           <div className="h-14 px-4 sm:px-6 flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -83,7 +83,7 @@ export default function DashboardLayout({
           </div>
         </nav>
 
-        {/* Sidebar */}
+
         <aside
           className={`fixed left-0 top-14 h-[calc(100vh-56px)] w-56 bg-sidebar border-r border-sidebar-border transform transition-transform duration-200 z-30 ${
             sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
@@ -111,7 +111,7 @@ export default function DashboardLayout({
           </nav>
         </aside>
 
-        {/* Main Content */}
+
         <main className="pt-14 md:pl-56">
           {sidebarOpen && (
             <div

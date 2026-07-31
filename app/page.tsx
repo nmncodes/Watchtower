@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -38,27 +38,9 @@ export default function Home() {
     {question : "Which alert channels are supported?" , answer: "Watchtower supports email and webhooks notifications."  } ,
   ]
 
-  // const plans = [
-  //   {
-  //     name: 'Starter', price: '\u20B90', period: 'Forever', description: 'Perfect for testing',
-  //     features: ['5 monitors', '5 minute check interval', 'Basic status page', 'Email notifications', '7-day history'],
-  //     cta: 'Get Started', highlighted: false,
-  //   },
-  //   {
-  //     name: 'Professional', price: '\u20B9100', period: '/month', description: 'For growing teams',
-  //     features: ['50 monitors', '1 minute check interval', 'Advanced status page', 'SMS & Slack notifications', '90-day history', 'Incident management', '5 team members'],
-  //     cta: 'Start Free Trial', highlighted: true,
-  //   },
-  //   {
-  //     name: 'Enterprise', price: '\u20B9150', period: '/month', description: 'For large organizations',
-  //     features: ['Unlimited monitors', '30 second check interval', 'White-label status pages', 'All notifications', 'Unlimited history', 'Priority support', 'Custom integrations'],
-  //     cta: 'Contact Sales', highlighted: false,
-  //   },
-  // ];
-
   return (
     <div className="min-h-screen bg-background text-foreground">
-      {/* Navigation */}
+
       <nav className="fixed top-0 w-full bg-background/80 backdrop-blur-lg border-b border-border/60 z-50">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -72,7 +54,7 @@ export default function Home() {
           <div className="hidden md:flex items-center gap-8">
             <a href="#features" className="text-sm text-muted-foreground hover:text-foreground transition">Features</a>
             <a href="#faq" className="text-sm text-muted-foreground hover:text-foreground transition">FAQs</a>
-            {/* <a href="#pricing" className="text-sm text-muted-foreground hover:text-foreground transition">Pricing</a> */}
+
           </div>
           <div className="flex items-center gap-3">
             <button
@@ -101,13 +83,10 @@ export default function Home() {
         </div>
       </nav>
 
-      {/* Hero */}
+
       <section className="pt-36 pb-24 px-6">
         <div className="max-w-3xl mx-auto">
-          {/* <div className="inline-flex items-center gap-2 mb-8 px-3 py-1.5 rounded-full border border-border bg-accent/50 text-sm text-muted-foreground">
-            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-            Monitor services worldwide
-          </div> */}
+
           <h1 className="text-5xl sm:text-6xl lg:text-7xl  tracking-tight leading-[1.08] mb-6">
             Know when
             <br />
@@ -143,7 +122,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Features */}
+
       <section id="features" className="py-24 px-6 border-t border-border/40">
         <div className="max-w-6xl mx-auto">
           <div className="max-w-2xl mb-16">
@@ -172,7 +151,7 @@ export default function Home() {
         </div>
       </section>
       
-      {/* FAQs*/}
+
       <section id="faq" className="py-24 px-6 border-t border-border/40 bg-accent/5">
         <div className="max-w-3xl mx-auto">
           <div className="text-center mb-16">
@@ -200,57 +179,9 @@ export default function Home() {
       </section>
 
 
-      {/* Pricing */}
-      {/* <section id="pricing" className="py-24 px-6 bg-accent/30">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center max-w-2xl mx-auto mb-16">
-            <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">Pricing</p>
-            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight mb-4">
-              Simple, transparent pricing
-            </h2>
-            <p className="text-muted-foreground text-lg">Start free, upgrade when you need more.</p>
-          </div>
-          <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-            {plans.map((plan, i) => (
-              <Card
-                key={i}
-                className={`p-8 relative flex flex-col ${
-                  plan.highlighted ? 'ring-2 ring-foreground/20 shadow-lg scale-[1.02]' : ''
-                }`}
-              >
-                {plan.highlighted && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                    <span className="bg-foreground text-background text-xs font-medium px-3 py-1 rounded-full">
-                      Most Popular
-                    </span>
-                  </div>
-                )}
-                <div className="mb-6">
-                  <h3 className="text-lg font-semibold mb-1">{plan.name}</h3>
-                  <p className="text-sm text-muted-foreground">{plan.description}</p>
-                </div>
-                <div className="mb-6">
-                  <span className="text-4xl font-bold">{plan.price}</span>
-                  <span className="text-muted-foreground text-sm ml-1">{plan.period}</span>
-                </div>
-                <Button className="w-full mb-6" variant={plan.highlighted ? 'default' : 'outline'}>
-                  {plan.cta}
-                </Button>
-                <ul className="space-y-2.5 flex-1">
-                  {plan.features.map((feature, j) => (
-                    <li key={j} className="flex items-center gap-2.5 text-sm">
-                      <Check className="w-4 h-4 text-green-600 shrink-0" />
-                      {feature}
-                    </li>
-                  ))}
-                </ul>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section> */}
 
-      {/* CTA */}
+
+
       <section className="py-24 px-6 border-t border-border/40">
         <div className="max-w-2xl mx-auto text-center">
           <h2 className="text-3xl sm:text-4xl font-bold tracking-tight mb-4">Ready to get started?</h2>
@@ -265,7 +196,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Footer */}
+
       <footer className="py-8 px-6 border-t border-border/40">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2.5">

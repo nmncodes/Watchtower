@@ -125,7 +125,7 @@ export default function Dashboard() {
         <p className="text-muted-foreground">Welcome back! Here&apos;s your monitoring overview.</p>
       </div>
 
-      {/* Stats Grid */}
+
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
         <Card className="p-6">
           <div className="flex items-start justify-between">
@@ -183,9 +183,9 @@ export default function Dashboard() {
       </div>
 
       <div className="grid lg:grid-cols-3 gap-8">
-        {/* Main Content */}
+
         <div className="lg:col-span-2 space-y-6">
-          {/* Aggregate Response Time Chart */}
+
           <Card className="p-6">
             <h2 className="font-semibold mb-4 flex items-center gap-2">
               <TrendingUp className="w-5 h-5" />
@@ -223,7 +223,7 @@ export default function Dashboard() {
             )}
           </Card>
 
-          {/* Monitors List with Sparklines */}
+
           <Card className="p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-semibold">Monitors</h2>
@@ -272,9 +272,9 @@ export default function Dashboard() {
           </Card>
         </div>
 
-        {/* Sidebar */}
+
         <div className="space-y-6">
-          {/* Quick Actions */}
+
           <Card className="p-6">
             <h3 className="font-semibold mb-4">Quick Actions</h3>
             <div className="space-y-2">
@@ -299,7 +299,7 @@ export default function Dashboard() {
             </div>
           </Card>
 
-          {/* Recent Incidents */}
+
           <Card className="p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold">Recent Incidents</h3>

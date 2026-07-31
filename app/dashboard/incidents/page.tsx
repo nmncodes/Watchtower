@@ -114,7 +114,7 @@ export default function IncidentsPage() {
 
             return (
               <Card key={incident.id} className="p-6">
-                {/* Header */}
+
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
@@ -152,7 +152,7 @@ export default function IncidentsPage() {
                   </div>
                 </div>
 
-                {/* Affected Services */}
+
                 <div className="mb-4">
                   <p className="text-sm font-medium mb-2">Affected Service</p>
                   <span className="px-3 py-1 bg-destructive/10 text-destructive rounded-full text-xs">
@@ -160,7 +160,7 @@ export default function IncidentsPage() {
                   </span>
                 </div>
 
-                {/* Timeline */}
+
                 {incident.timeline.length > 0 && (
                   <div className="border-t border-border pt-4">
                     <p className="text-sm font-medium mb-4">Incident Timeline</p>
