@@ -21,6 +21,8 @@ interface Check {
   status: string;
   responseTime: number;
   code: number | null;
+  redirectStatus?: number | null;
+  finalUrl?: string | null;
   createdAt: string;
   regionResults?: RegionResult[];
 }
@@ -30,6 +32,8 @@ interface RegionResult {
   status: string;
   responseTime: number;
   code: number | null;
+  redirectStatus?: number | null;
+  finalUrl?: string | null;
   errorType?: string;
   createdAt?: string;
 }
@@ -422,7 +426,9 @@ export default function MonitorDetailPage() {
                           </span>
                         </td>
                         <td className="py-2 text-right font-mono">{check.responseTime}ms</td>
-                        <td className="py-2 text-right font-mono text-muted-foreground">{check.code ?? '—'}</td>
+                        <td className="py-2 text-right font-mono text-muted-foreground">
+                          {check.redirectStatus ? `${check.redirectStatus} -> ${check.code ?? '—'}` : check.code ?? '—'}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -479,7 +485,9 @@ export default function MonitorDetailPage() {
                       <div>
                         <p className="text-sm font-medium">{result.region}</p>
                         <p className="text-xs text-muted-foreground">
-                          {result.responseTime}ms {result.code ? `• HTTP ${result.code}` : ''}
+                          {result.responseTime}ms {result.redirectStatus
+                            ? `• HTTP ${result.redirectStatus} -> ${result.code ?? '—'}`
+                            : result.code ? `• HTTP ${result.code}` : ''}
                         </p>
                       </div>
                       <span className={`text-xs font-semibold uppercase ${tone}`}>

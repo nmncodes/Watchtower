@@ -79,19 +79,31 @@ export default {
     const timer = globalThis.setTimeout(() => controller.abort(), timeoutMs);
 
     try {
-      const response = await globalThis.fetch(targetUrl, {
-        method: "GET",
-        redirect: "follow",
-        cache: "no-store",
-        signal: controller.signal,
-        headers: {
+      let currentUrl = targetUrl;
+      let redirectStatus = null;
+      let response;
+
+      for (let redirectCount = 0; redirectCount <= 5; redirectCount += 1) {
+        response = await globalThis.fetch(currentUrl, {
+          method: "GET",
+          redirect: "manual",
+          cache: "no-store",
+          signal: controller.signal,
+          headers: {
           "user-agent": "WatchtowerCloudflareProbe/1.0",
           accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
           "accept-language": "en-US,en;q=0.9",
           "cache-control": "no-cache",
           pragma: "no-cache",
-        },
-      });
+          },
+        });
+
+        if (response.status < 300 || response.status >= 400) break;
+        const location = response.headers.get("location");
+        if (!location || redirectCount === 5) break;
+        if (redirectStatus === null) redirectStatus = response.status;
+        currentUrl = new globalThis.URL(location, currentUrl).toString();
+      }
 
       const responseTime = Date.now() - start;
       const code = response.status;
@@ -106,6 +118,8 @@ export default {
         status,
         responseTime,
         code,
+        redirectStatus,
+        finalUrl: currentUrl,
         retryAfterSeconds,
         errorType: status === "DOWN" ? "HTTP" : "NONE",
         contractVersion: "watchtower-probe-v1",
@@ -125,6 +139,8 @@ export default {
           status: "DOWN",
           responseTime,
           code: null,
+          redirectStatus: null,
+          finalUrl: null,
           retryAfterSeconds: null,
           errorType: classifyProbeError(error),
           contractVersion: "watchtower-probe-v1",

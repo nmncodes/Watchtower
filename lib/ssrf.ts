@@ -3,6 +3,7 @@ import { promisify } from 'util';
 
 const lookup = promisify(dns.lookup);
 
+// by claude
 export async function isSSRFSafeUrl(urlString: string): Promise<boolean> {
   try {
     const url = new URL(urlString);

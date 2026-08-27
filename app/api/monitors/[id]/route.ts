@@ -40,6 +40,8 @@ export async function GET( req: Request, { params }: { params: Promise<{ id: str
                 status: true,
                 responseTime: true,
                 code: true,
+                redirectStatus: true,
+                finalUrl: true,
                 errorType: true,
                 createdAt: true,
               },

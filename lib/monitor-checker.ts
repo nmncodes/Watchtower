@@ -10,11 +10,14 @@ import { findRootCause } from "./graph-utils";
 import {WRITE_ONLY_ON_CHANGE , FORCE_WRITE_INTERVAL } from "@/lib/config";
 import { isSSRFSafeUrl } from "@/lib/ssrf";
 
+// by claude
 export interface CheckResult {
   status: CheckStatus;
   responseTime: number;
   code: number | null;
   retryAfterSeconds: number | null;
+  redirectStatus: number | null;
+  finalUrl: string | null;
 }
 
 export interface RegionCheckResult extends CheckResult {
@@ -40,6 +43,8 @@ interface CheckMonitorResult {
         status: CheckStatus;
         responseTime: number;
         code: number | null;
+        redirectStatus: number | null;
+        finalUrl: string | null;
         createdAt: Date;
         regionResults: {
           region: string;
@@ -413,15 +418,20 @@ async function probeUrlOnce(url: string): Promise<ProbeResult> {
   const start = Date.now();
 
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), CHECK_TIMEOUT_MS);
+    let currentUrl = url;
+    let redirectStatus: number | null = null;
+    let res: Response | undefined;
 
-    const res = await fetch(url, {
-      method: "GET",
-      signal: controller.signal,
-      redirect: "follow",
-      cache: "no-store",
-      headers: {
+    for (let redirectCount = 0; redirectCount <= 5; redirectCount += 1) {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), CHECK_TIMEOUT_MS);
+      try {
+        res = await fetch(currentUrl, {
+          method: "GET",
+          signal: controller.signal,
+          redirect: "manual",
+          cache: "no-store",
+          headers: {
         "user-agent":
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 WatchtowerMonitor/1.2",
         accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
@@ -436,10 +446,21 @@ async function probeUrlOnce(url: string): Promise<ProbeResult> {
         "sec-fetch-site": "none",
         "sec-fetch-user": "?1",
         "upgrade-insecure-requests": "1",
-      },
-    });
+          },
+        });
+      } finally {
+        clearTimeout(timeout);
+      }
 
-    clearTimeout(timeout);
+      if (res.status < 300 || res.status >= 400) break;
+      const location = res.headers.get("location");
+      if (!location || redirectCount === 5) break;
+      if (redirectStatus === null) redirectStatus = res.status;
+      currentUrl = new URL(location, currentUrl).toString();
+    }
+
+    if (!res) throw new Error("Probe did not return a response");
+
     const responseTime = Date.now() - start;
     const code = res.status;
     const retryAfterSeconds = parseRetryAfterSeconds(res.headers.get("retry-after"));
@@ -453,6 +474,8 @@ async function probeUrlOnce(url: string): Promise<ProbeResult> {
       responseTime,
       code,
       retryAfterSeconds,
+      redirectStatus,
+      finalUrl: currentUrl,
       errorType: status === "DOWN" ? "HTTP" : "NONE",
     };
   } catch (error) {
@@ -461,6 +484,8 @@ async function probeUrlOnce(url: string): Promise<ProbeResult> {
       responseTime: Date.now() - start,
       code: null,
       retryAfterSeconds: null,
+      redirectStatus: null,
+      finalUrl: null,
       errorType: classifyProbeError(error),
     };
   }
@@ -558,12 +583,16 @@ async function probeRegionViaEndpoint(
         responseTime: Date.now() - start,
         code: res.status,
         retryAfterSeconds: null,
+        redirectStatus: null,
+        finalUrl: null,
         errorType: "UNKNOWN",
         source: "edge",
       };
     }
 
     const code = typeof body.code === "number" ? body.code : res.status;
+    const redirectStatus = typeof body.redirectStatus === "number" ? body.redirectStatus : null;
+    const finalUrl = typeof body.finalUrl === "string" ? body.finalUrl : null;
     const responseTime =
       typeof body.responseTime === "number" && Number.isFinite(body.responseTime)
         ? Math.max(0, Math.round(body.responseTime))
@@ -586,6 +615,8 @@ async function probeRegionViaEndpoint(
       responseTime,
       code,
       retryAfterSeconds,
+      redirectStatus,
+      finalUrl,
       errorType,
       source: "edge",
     };
@@ -596,6 +627,8 @@ async function probeRegionViaEndpoint(
       responseTime: Date.now() - start,
       code: null,
       retryAfterSeconds: null,
+      redirectStatus: null,
+      finalUrl: null,
       errorType: classifyProbeError(error),
       source: "edge",
     };
@@ -612,6 +645,8 @@ async function probeRegionLocally(url: string, region: string): Promise<RegionCh
     responseTime: local.responseTime,
     code: local.code,
     retryAfterSeconds: local.retryAfterSeconds,
+    redirectStatus: local.redirectStatus,
+    finalUrl: local.finalUrl,
     errorType: local.errorType,
     source: "local",
   };
@@ -694,6 +729,8 @@ function aggregateRegionResults(regionResults: RegionCheckResult[]): AggregatedC
     responseTime,
     code,
     retryAfterSeconds,
+    redirectStatus: regionResults.find((result) => result.redirectStatus !== null)?.redirectStatus ?? null,
+    finalUrl: regionResults.find((result) => result.finalUrl !== null)?.finalUrl ?? null,
     regionResults,
     downVotes,
     degradedVotes,
@@ -723,6 +760,8 @@ async function runDistributedCheck(url: string, fallbackRegion: string): Promise
       responseTime: 0,
       code: null,
       retryAfterSeconds: null,
+      redirectStatus: null,
+      finalUrl: null,
       errorType: "UNKNOWN" as const,
       source: "local" as const,
     };
@@ -773,6 +812,8 @@ export async function pingUrl(url: string): Promise<CheckResult> {
       responseTime: 0,
       code: 403,
       retryAfterSeconds: null,
+      redirectStatus: null,
+      finalUrl: null,
     };
   }
   const result = await pingUrlDetailed(url);
@@ -781,6 +822,8 @@ export async function pingUrl(url: string): Promise<CheckResult> {
     responseTime: result.responseTime,
     code: result.code,
     retryAfterSeconds: result.retryAfterSeconds,
+    redirectStatus: result.redirectStatus,
+    finalUrl: result.finalUrl,
   };
 }
 
@@ -829,12 +872,16 @@ async function checkMonitorForSnapshot(
       status: result.status,
       responseTime: result.responseTime,
       code: result.code,
+      redirectStatus: result.redirectStatus,
+      finalUrl: result.finalUrl,
       regionResults: {
         create: result.regionResults.map((regionResult) => ({
           region: regionResult.region,
           status: regionResult.status,
           responseTime: regionResult.responseTime,
           code: regionResult.code,
+          redirectStatus: regionResult.redirectStatus,
+          finalUrl: regionResult.finalUrl,
           errorType: regionResult.errorType,
         })),
       },

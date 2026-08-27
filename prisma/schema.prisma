@@ -110,6 +110,8 @@ model Check {
   status       CheckStatus
   responseTime Int // ms
   code         Int? // HTTP status code
+  redirectStatus Int?
+  finalUrl     String?
   createdAt    DateTime    @default(now())
 
   monitor       Monitor            @relation(fields: [monitorId], references: [id], onDelete: Cascade)
@@ -135,6 +137,8 @@ model CheckRegionResult {
   status       CheckStatus
   responseTime Int
   code         Int?
+  redirectStatus Int?
+  finalUrl     String?
   errorType    ProbeErrorType @default(NONE)
   createdAt    DateTime       @default(now())
 

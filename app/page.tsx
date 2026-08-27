@@ -20,6 +20,7 @@ export default function Home() {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    // by claude
     setMounted(true);
   }, []);
 

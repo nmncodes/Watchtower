@@ -4,7 +4,7 @@ export async function detectCycle(
   monitorId: string,
   newDependencyIds: string[]
 ): Promise<boolean> {
-  // If no dependencies, no cycle
+  // If no dependencies, no cycle // by claude
   if (newDependencyIds.length === 0) return false;
 
   // Set of monitors we've visited to detect cycles

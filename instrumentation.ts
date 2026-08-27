@@ -9,5 +9,5 @@ export async function onRequestError() {
 }
 
 export async function register() {
-  // No-op by design. External schedulers trigger /api/cron.
+  // No-op by design. External schedulers trigger /api/cron. // by claude
 }
