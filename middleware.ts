@@ -1,5 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { auth } from "@/lib/auth";
+import NextAuth from "next-auth";
+import { authConfig } from "@/lib/auth.config";
+
+const { auth } = NextAuth(authConfig);
 
 const PUBLIC_API_PATHS = ["/api/auth", "/api/cron"];
 
