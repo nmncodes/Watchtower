@@ -2,7 +2,7 @@ import nodemailer from "nodemailer";
 import { prisma } from "@/lib/prisma";
 import { isSSRFSafeUrl } from "@/lib/ssrf";
 
-interface NotificationPayload {
+export interface NotificationPayload {
   monitorName: string;
   monitorUrl: string;
   event: "DOWN" | "RECOVERY";
@@ -61,7 +61,7 @@ function getMailTransport() {
   });
 }
 
-async function sendEmailNotification(
+export async function sendEmailNotification(
   to: string,
   payload: NotificationPayload
 ) {
@@ -98,7 +98,7 @@ async function sendEmailNotification(
 
 // Webhook 
 
-async function sendWebhookNotification(
+export async function sendWebhookNotification(
   url: string,
   payload: NotificationPayload
 ) {

@@ -26,7 +26,7 @@ export interface RegionCheckResult extends CheckResult {
   source: "edge" | "local";
 }
 
-interface AggregatedCheckResult extends CheckResult {
+export interface AggregatedCheckResult extends CheckResult {
   regionResults: RegionCheckResult[];
   downVotes: number;
   degradedVotes: number;
@@ -101,7 +101,7 @@ const DOWN_QUORUM_RATIO = clampNumber(
   0.5,
   1
 );
-const DOWN_ALERT_CONSECUTIVE_CHECKS = Math.max(
+export const DOWN_ALERT_CONSECUTIVE_CHECKS = Math.max(
   1,
   Number(process.env.MONITOR_DOWN_ALERT_CONSECUTIVE_CHECKS ?? "2")
 );
@@ -740,7 +740,7 @@ function aggregateRegionResults(regionResults: RegionCheckResult[]): AggregatedC
   };
 }
 
-async function runDistributedCheck(url: string, fallbackRegion: string): Promise<AggregatedCheckResult> {
+export async function runDistributedCheck(url: string, fallbackRegion: string): Promise<AggregatedCheckResult> {
   const regions = getDistributedRegions(fallbackRegion);
 
   const settled = await mapWithConcurrency(

@@ -3,6 +3,11 @@ import { checkMonitor } from "@/lib/monitor-checker";
 import { prisma } from "@/lib/prisma";
 import { getCurrentMonitorActor } from "@/lib/session";
 import { checkRateLimit } from "@/lib/rate-limit";
+import {
+  QUEUE_ENABLED,
+  getMonitorChecksQueue,
+} from "@/lib/queue";
+import type { CheckRequestJob } from "@/lib/queue";
 
 export async function POST(
   _req: Request,
@@ -20,15 +25,40 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const owned = await prisma.monitor.findFirst({
+    const monitor = await prisma.monitor.findFirst({
       where: { id, userId: actor.userId },
-      select: { id: true },
+      include: { dependencies: { select: { id: true } } },
     });
 
-    if (!owned) {
+    if (!monitor) {
       return NextResponse.json({ error: "Monitor not found" }, { status: 404 });
     }
 
+    // ── Queue path: enqueue and return 202 ──
+    if (QUEUE_ENABLED) {
+      const payload: CheckRequestJob = {
+        monitorId: monitor.id,
+        url: monitor.url,
+        region: monitor.region,
+        name: monitor.name,
+        userId: monitor.userId,
+        interval: monitor.interval,
+        dependencyIds: monitor.dependencies.map((d) => d.id),
+      };
+
+      const queue = getMonitorChecksQueue();
+      await queue.add('manual-check', payload, {
+        removeOnComplete: true,
+        removeOnFail: true,
+      });
+
+      return NextResponse.json(
+        { message: "Check enqueued", monitorId: monitor.id },
+        { status: 202 }
+      );
+    }
+
+    // ── Legacy synchronous path ──
     const result = await checkMonitor(id);
     if (!result) {
       return NextResponse.json(
