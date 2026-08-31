@@ -13,7 +13,8 @@
     "worker:persistence": "npx tsx workers/persistence-worker.ts",
     "worker:incident": "npx tsx workers/incident-worker.ts",
     "worker:notification": "npx tsx workers/notification-worker.ts",
-    "workers:all": "concurrently \"npm:worker:*\""
+    "workers:all": "concurrently \"npm:worker:*\"",
+    "start:all": "concurrently \"next start\" \"npm run workers:all\""
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",
