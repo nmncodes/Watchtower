@@ -4,7 +4,7 @@ import { authConfig } from "@/lib/auth.config";
 
 const { auth } = NextAuth(authConfig);
 
-const PUBLIC_API_PATHS = ["/api/auth", "/api/cron"];
+const PUBLIC_API_PATHS = ["/api/auth", "/api/cron", "/api/health"];
 
 // by claude
 export default auth(async function middleware(req: NextRequest) {
