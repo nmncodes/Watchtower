@@ -463,6 +463,7 @@ async function probeUrlOnce(url: string): Promise<ProbeResult> {
 
     const responseTime = Date.now() - start;
     const code = res.status;
+    const reportedCode = code === 403 && isLikelyWafResponse(code, res.headers) ? 200 : code;
     const retryAfterSeconds = parseRetryAfterSeconds(res.headers.get("retry-after"));
     const status =
       code === 429
@@ -472,7 +473,7 @@ async function probeUrlOnce(url: string): Promise<ProbeResult> {
     return {
       status,
       responseTime,
-      code,
+      code: reportedCode,
       retryAfterSeconds,
       redirectStatus,
       finalUrl: currentUrl,

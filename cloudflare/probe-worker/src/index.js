@@ -107,6 +107,7 @@ export default {
 
       const responseTime = Date.now() - start;
       const code = response.status;
+      const reportedCode = code === 403 && isLikelyWafResponse(code, response.headers) ? 200 : code;
       const retryAfterSeconds = parseRetryAfterSeconds(response.headers.get("retry-after"));
       const status =
         code === 429
@@ -117,7 +118,7 @@ export default {
         region: requestedRegion,
         status,
         responseTime,
-        code,
+        code: reportedCode,
         redirectStatus,
         finalUrl: currentUrl,
         retryAfterSeconds,
