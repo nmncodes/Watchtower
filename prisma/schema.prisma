@@ -8,7 +8,7 @@ datasource db {
 }
 
 //Users ==> ADMIN and User
-// patch update
+// User role definitions: ADMIN has unlimited manual checks, USER has rate limits
 
 enum Role {
   ADMIN
