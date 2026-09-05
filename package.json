@@ -1,6 +1,6 @@
 {
   "name": "watchtower",
-  "description": "Watchtower uptime monitor",
+  "description": "Watchtower uptime monitoring service",
   "version": "0.1.0",
   "private": true,
   "scripts": {

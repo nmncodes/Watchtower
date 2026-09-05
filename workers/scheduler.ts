@@ -8,7 +8,7 @@ const MIN_EFFECTIVE_INTERVAL_SECONDS = Number(
 );
 
 // We still need a redis connection to ensure the queue can connect
-// minor update
+// patch update
 createRedisConnection();
 
 async function runSchedule() {

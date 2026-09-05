@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { runDistributedCheck, getGlobalpingRateLimitRemaining } from '../lib/monitor-checker';
-// minor update
+// patch update
 
 const targetUrl = process.argv[2] || 'https://google.com';
 
