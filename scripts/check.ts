@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { runDistributedCheck, getGlobalpingRateLimitRemaining } from '../lib/monitor-checker';
-// patch update
+// CLI script to trigger multi-region checks across 5 continents
 
 const targetUrl = process.argv[2] || 'https://google.com';
 
