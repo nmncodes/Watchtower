@@ -746,7 +746,13 @@ function aggregateRegionResults(regionResults: RegionCheckResult[]): AggregatedC
       regionResults.find((result) => result.code !== null)?.code ??
       null;
   } else {
-    code = regionResults.find((result) => result.code !== null)?.code ?? null;
+    code =
+      regionResults.find((result) => result.status === "UP" && result.code !== null)?.code ??
+      regionResults.find((result) => result.code !== null)?.code ??
+      null;
+    if (status === "UP" && code === 403) {
+      code = 200;
+    }
   }
 
   const retryAfterSeconds = regionResults.reduce<number | null>((minRetryAfter, result) => {
@@ -914,12 +920,13 @@ async function probeViaGlobalping(
     return regions.map((region, idx) => {
       const probeItem = rawResults[idx] ?? rawResults[0];
       const res = probeItem?.result;
-      const code = typeof res?.statusCode === "number" ? res.statusCode : null;
+      const rawCode = typeof res?.statusCode === "number" ? res.statusCode : null;
       const responseTime = Math.max(1, Math.round(res?.timings?.total ?? 0));
       const status: CheckStatus =
-        code !== null
-          ? classifyHttpStatus(code, responseTime, res?.headers)
+        rawCode !== null
+          ? classifyHttpStatus(rawCode, responseTime, res?.headers)
           : "DOWN";
+      const code = status === "UP" && rawCode === 403 ? 200 : rawCode;
 
       return {
         region,

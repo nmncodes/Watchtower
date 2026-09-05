@@ -18,14 +18,15 @@ async function main() {
   console.log(`  Quorum: ${res.upVotes}/${res.totalRegions} UP`);
   console.log(`  Probe Execution Time: ${elapsed}ms\n`);
 
-  console.log('  Region        Latency    Status   Source');
-  console.log('  ------------------------------------------------');
+  console.log('  Region        Latency    HTTP    Status   Source');
+  console.log('  ---------------------------------------------------------');
   for (const r of res.regionResults) {
     const region = r.region.padEnd(13);
     const latency = `${r.responseTime}ms`.padEnd(10);
+    const httpCode = `${r.code ?? '-'}`.padEnd(7);
     const status = r.status.padEnd(8);
     const source = r.source === 'edge' ? 'Globalping (real edge)' : 'local fallback';
-    console.log(`  ${region} ${latency} ${status} ${source}`);
+    console.log(`  ${region} ${latency} ${httpCode} ${status} ${source}`);
   }
 
   const remaining = getGlobalpingRateLimitRemaining();
