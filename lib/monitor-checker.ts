@@ -320,11 +320,25 @@ function classifyProbeError(error: unknown): ProbeErrorType {
   return "UNKNOWN";
 }
 
-function isLikelyWafResponse(code: number, headers: Headers): boolean {
-  if (code < 400) return false;
+function isLikelyWafResponse(
+  code: number,
+  headers?: Headers | Record<string, string> | null
+): boolean {
+  if (code < 400 || !headers) return false;
 
-  const server = (headers.get("server") ?? "").toLowerCase();
-  const via = (headers.get("via") ?? "").toLowerCase();
+  const getHeader = (name: string): string => {
+    if (headers instanceof Headers) {
+      return headers.get(name) ?? "";
+    }
+    const lower = name.toLowerCase();
+    for (const [k, v] of Object.entries(headers)) {
+      if (k.toLowerCase() === lower && typeof v === "string") return v;
+    }
+    return "";
+  };
+
+  const server = getHeader("server").toLowerCase();
+  const via = getHeader("via").toLowerCase();
   const wafHints = [
     "cloudflare",
     "akamai",
@@ -332,30 +346,39 @@ function isLikelyWafResponse(code: number, headers: Headers): boolean {
     "incapsula",
     "sucuri",
     "f5",
+    "cloudfront",
+    "fastly",
+    "ddos-guard",
   ];
 
   const hasServerHint = wafHints.some((hint) => server.includes(hint) || via.includes(hint));
 
   return (
     hasServerHint ||
-    Boolean(headers.get("cf-ray")) ||
-    Boolean(headers.get("cf-mitigated")) ||
-    Boolean(headers.get("x-sucuri-id")) ||
-    Boolean(headers.get("x-akamai-request-id")) ||
-    Boolean(headers.get("x-iinfo"))
+    Boolean(getHeader("cf-ray")) ||
+    Boolean(getHeader("cf-mitigated")) ||
+    Boolean(getHeader("x-sucuri-id")) ||
+    Boolean(getHeader("x-akamai-request-id")) ||
+    Boolean(getHeader("x-iinfo")) ||
+    Boolean(getHeader("x-amz-cf-id"))
   );
 }
 
-function classifyHttpStatus(code: number, responseTime: number, headers: Headers): CheckStatus {
+function classifyHttpStatus(
+  code: number,
+  responseTime: number,
+  headers?: Headers | Record<string, string> | null
+): CheckStatus {
   if (code >= 200 && code < 400) {
     return responseTime > 5000 ? "DEGRADED" : "UP";
   }
 
   // Many bot-protected properties return 4xx for synthetic probes while
-  // still serving users; treat client-errors as degraded service.
+  // still serving users; treat client-errors as degraded service,
+  // but if it's a 403 WAF/bot challenge (Cloudflare, Akamai, etc.), treat as UP.
   if (code >= 400 && code < 500) {
     if (code === 403 && isLikelyWafResponse(code, headers)) {
-      return "UP";
+      return responseTime > 5000 ? "DEGRADED" : "UP";
     }
     return "DEGRADED";
   }
@@ -370,6 +393,7 @@ function classifyHttpStatus(code: number, responseTime: number, headers: Headers
 
   return "DEGRADED";
 }
+
 
 type ProbeResult = CheckResult & {
   errorType: ProbeErrorType;
@@ -893,12 +917,8 @@ async function probeViaGlobalping(
       const code = typeof res?.statusCode === "number" ? res.statusCode : null;
       const responseTime = Math.max(1, Math.round(res?.timings?.total ?? 0));
       const status: CheckStatus =
-        code !== null && code >= 200 && code < 400
-          ? responseTime > 5000
-            ? "DEGRADED"
-            : "UP"
-          : code !== null && code >= 400 && code < 500
-          ? "DEGRADED"
+        code !== null
+          ? classifyHttpStatus(code, responseTime, res?.headers)
           : "DOWN";
 
       return {
