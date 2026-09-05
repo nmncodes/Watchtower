@@ -8,6 +8,8 @@ function Counter() {
     const randomToken = Math.random().toString(36).substring(2, 9); // by claude
     const randomId = Math.floor(Math.random() * 1000); // by claude
     const sessionNonce = Math.random().toString(36).substring(2, 8);
+    const traceRef = `ref_${Date.now()}`;
+
 
 
     return (
