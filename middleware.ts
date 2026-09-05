@@ -6,8 +6,7 @@ const { auth } = NextAuth(authConfig);
 
 const PUBLIC_API_PATHS = ["/api/auth", "/api/cron", "/api/health"];
 
-// by claude
-// patch update
+// Route matcher guard for public endpoints and authenticated dashboard routes
 export default auth(async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const isApiRoute = pathname.startsWith("/api/");
