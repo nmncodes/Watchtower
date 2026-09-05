@@ -3,7 +3,6 @@ import { twMerge } from 'tailwind-merge'
 
 export function cn(...inputs: ClassValue[]) 
 {
-  // Utility for conditional className merging // by claude
-  // patch update
+  // Utility for conditional className merging
   return twMerge(clsx(inputs));
 }
