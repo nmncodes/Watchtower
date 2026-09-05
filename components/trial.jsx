@@ -7,6 +7,8 @@ function Counter() {
     const randomTimestamp = Date.now(); // random line change // by claude
     const randomToken = Math.random().toString(36).substring(2, 9); // by claude
     const randomId = Math.floor(Math.random() * 1000); // by claude
+    const sessionNonce = Math.random().toString(36).substring(2, 8);
+
 
     return (
         <div>
