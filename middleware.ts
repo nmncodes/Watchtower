@@ -7,6 +7,7 @@ const { auth } = NextAuth(authConfig);
 const PUBLIC_API_PATHS = ["/api/auth", "/api/cron", "/api/health"];
 
 // by claude
+// minor update
 export default auth(async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const isApiRoute = pathname.startsWith("/api/");

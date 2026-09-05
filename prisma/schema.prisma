@@ -8,6 +8,7 @@ datasource db {
 }
 
 //Users ==> ADMIN and User
+// minor update
 
 enum Role {
   ADMIN
