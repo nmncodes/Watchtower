@@ -84,7 +84,7 @@ const MIN_EFFECTIVE_INTERVAL_SECONDS = Number(process.env.MONITOR_MIN_EFFECTIVE_
 const MAX_CONCURRENT_CHECKS = Number(process.env.MONITOR_MAX_CONCURRENT_CHECKS ?? "4");
 const DEFAULT_RETRY_AFTER_SECONDS = Number(process.env.MONITOR_DEFAULT_RETRY_AFTER_SECONDS ?? "60");
 const CHECK_TIMEOUT_MS = Number(process.env.MONITOR_CHECK_TIMEOUT_MS ?? "10000");
-const DISTRIBUTED_REGIONS = (process.env.MONITOR_DISTRIBUTED_REGIONS ?? "us-east-1,us-west-2,eu-west-1,ap-south-1,ap-southeast-1")
+const DISTRIBUTED_REGIONS = (process.env.MONITOR_DISTRIBUTED_REGIONS ?? "USA,Europe,India,Australia,Africa")
   .split(",")
   .map((entry) => entry.trim())
   .filter(Boolean);
@@ -115,9 +115,15 @@ const INTERVAL_JITTER_ENABLED = process.env.MONITOR_INTERVAL_JITTER_ENABLED !== 
 const INTERVAL_JITTER_MIN_SECONDS = Number(process.env.MONITOR_INTERVAL_JITTER_MIN_SECONDS ?? "5");
 const INTERVAL_JITTER_MAX_SECONDS = Number(process.env.MONITOR_INTERVAL_JITTER_MAX_SECONDS ?? "15");
 const RATE_LIMIT_429_POLICY = get429Policy(process.env.MONITOR_429_POLICY);
-const REGION_PROBE_ENDPOINTS = parseRegionProbeEndpoints(
-  process.env.MONITOR_REGION_PROBE_ENDPOINTS
-);
+
+// ─── Globalping Integration Config ──────────────────────────────────────────
+const GLOBALPING_ENABLED = process.env.GLOBALPING_ENABLED !== "false";
+const GLOBALPING_API_TOKEN = process.env.GLOBALPING_API_TOKEN?.trim() || null;
+const GLOBALPING_TIMEOUT_MS = 6000;
+
+// Cloudflare worker endpoints (commented out in favor of Globalping)
+// const REGION_PROBE_ENDPOINTS = parseRegionProbeEndpoints(process.env.MONITOR_REGION_PROBE_ENDPOINTS);
+const REGION_PROBE_ENDPOINTS: Record<string, string> = {};
 const REGION_PROBE_AUTH_TOKEN = process.env.MONITOR_REGION_PROBE_AUTH_TOKEN;
 const REGION_PROBE_AUTH_TOKENS = parseRegionProbeAuthTokens(
   process.env.MONITOR_REGION_PROBE_AUTH_TOKENS
@@ -690,7 +696,7 @@ function aggregateRegionResults(regionResults: RegionCheckResult[]): AggregatedC
   let status: CheckStatus;
   if (downVotes >= quorum) {
     status = "DOWN";
-  } else if (degradedVotes > 0 || downVotes > 0) {
+  } else if ((downVotes + degradedVotes) >= quorum) {
     status = "DEGRADED";
   } else {
     status = "UP";
@@ -741,8 +747,186 @@ function aggregateRegionResults(regionResults: RegionCheckResult[]): AggregatedC
   };
 }
 
+interface GlobalpingLocation {
+  continent: string;
+  region?: string;
+  country?: string;
+}
+
+function mapRegionToGlobalpingLocation(region: string): GlobalpingLocation {
+  const normalized = region.trim().toLowerCase();
+  if (normalized.includes("usa") || normalized.includes("us-") || normalized.includes("use") || normalized.includes("usw") || normalized.includes("america")) {
+    return { continent: "NA", country: "US" };
+  }
+  if (normalized.includes("europe") || normalized.includes("eu-") || normalized.includes("euw")) {
+    return { continent: "EU" };
+  }
+  if (normalized.includes("india") || normalized.includes("ap-south-1") || normalized.includes("aps1")) {
+    return { continent: "AS", country: "IN" };
+  }
+  if (normalized.includes("australia") || normalized.includes("oceania") || normalized.includes("au")) {
+    return { continent: "OC", country: "AU" };
+  }
+  if (normalized.includes("africa") || normalized.includes("af")) {
+    return { continent: "AF" };
+  }
+  if (normalized.includes("ap-") || normalized.includes("apse") || normalized.includes("asia")) {
+    return { continent: "AS" };
+  }
+  return { continent: "NA" };
+}
+
+let lastGlobalpingRateLimitRemaining: number | null = null;
+
+export function getGlobalpingRateLimitRemaining(): number | null {
+  return lastGlobalpingRateLimitRemaining;
+}
+
+interface GlobalpingProbeResult {
+  probe?: {
+    continent?: string;
+    region?: string;
+    country?: string;
+    city?: string;
+    network?: string;
+  };
+  result?: {
+    status?: string;
+    statusCode?: number;
+    timings?: { total?: number };
+    rawOutput?: string;
+    headers?: Record<string, string>;
+  };
+}
+
+async function probeViaGlobalping(
+  url: string,
+  regions: string[]
+): Promise<RegionCheckResult[] | null> {
+  try {
+    const parsed = new URL(url);
+    const target = parsed.hostname;
+    if (!target) return null;
+
+    const protocol = parsed.protocol === "https:" ? "HTTPS" : "HTTP";
+    const path = (parsed.pathname || "/") + (parsed.search || "");
+    const port = parsed.port ? Number(parsed.port) : undefined;
+
+    const locations = regions.map((region) => mapRegionToGlobalpingLocation(region));
+
+    const postHeaders: Record<string, string> = {
+      "content-type": "application/json",
+    };
+    if (GLOBALPING_API_TOKEN) {
+      postHeaders.authorization = `Bearer ${GLOBALPING_API_TOKEN}`;
+    }
+
+    const postRes = await fetch("https://api.globalping.io/v1/measurements", {
+      method: "POST",
+      headers: postHeaders,
+      body: JSON.stringify({
+        type: "http",
+        target,
+        measurementOptions: {
+          protocol,
+          ...(port ? { port } : {}),
+          request: {
+            path,
+            headers: {
+              "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+              accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            },
+          },
+        },
+        locations,
+      }),
+    });
+
+    if (!postRes.ok) {
+      return null;
+    }
+
+    const remainingHdr = postRes.headers.get("x-ratelimit-remaining");
+    if (remainingHdr !== null) {
+      lastGlobalpingRateLimitRemaining = Number(remainingHdr);
+    }
+
+    const postData = (await postRes.json()) as { id?: string } | null;
+    const measurementId = postData?.id;
+    if (!measurementId) return null;
+
+    // Poll for measurement completion (typically ready in 800ms - 1500ms)
+    const startTime = Date.now();
+    let measurementData: { status?: string; results?: GlobalpingProbeResult[] } | null = null;
+
+    while (Date.now() - startTime < GLOBALPING_TIMEOUT_MS) {
+      await sleep(500);
+      const getRes = await fetch(
+        `https://api.globalping.io/v1/measurements/${measurementId}`,
+        {
+          headers: GLOBALPING_API_TOKEN
+            ? { authorization: `Bearer ${GLOBALPING_API_TOKEN}` }
+            : {},
+        }
+      );
+      if (getRes.ok) {
+        const data = (await getRes.json()) as { status?: string; results?: GlobalpingProbeResult[] } | null;
+        if (data && data.status === "finished") {
+          measurementData = data;
+          break;
+        }
+      }
+    }
+
+    if (
+      !measurementData ||
+      !Array.isArray(measurementData.results) ||
+      measurementData.results.length === 0
+    ) {
+      return null;
+    }
+
+    const rawResults = measurementData.results;
+    return regions.map((region, idx) => {
+      const probeItem = rawResults[idx] ?? rawResults[0];
+      const res = probeItem?.result;
+      const code = typeof res?.statusCode === "number" ? res.statusCode : null;
+      const responseTime = Math.max(1, Math.round(res?.timings?.total ?? 0));
+      const status: CheckStatus =
+        code !== null && code >= 200 && code < 400
+          ? responseTime > 5000
+            ? "DEGRADED"
+            : "UP"
+          : code !== null && code >= 400 && code < 500
+          ? "DEGRADED"
+          : "DOWN";
+
+      return {
+        region,
+        status,
+        responseTime,
+        code,
+        retryAfterSeconds: null,
+        redirectStatus: null,
+        finalUrl: url,
+        errorType: status === "DOWN" ? (code ? "HTTP" : "CONNECT") : "NONE",
+        source: "edge" as const,
+      };
+    });
+  } catch {
+    return null;
+  }
+}
+
 export async function runDistributedCheck(url: string, fallbackRegion: string): Promise<AggregatedCheckResult> {
   const regions = getDistributedRegions(fallbackRegion);
+
+  if (GLOBALPING_ENABLED) {
+    const globalpingResults = await probeViaGlobalping(url, regions);
+    if (globalpingResults && globalpingResults.length > 0) {
+      return aggregateRegionResults(globalpingResults);
+    }
+  }
 
   const settled = await mapWithConcurrency(
     regions,

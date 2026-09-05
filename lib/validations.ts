@@ -5,8 +5,8 @@ import { z } from "zod";
 export const createMonitorSchema = z.object({
   name: z.string().min(1 , "Name is required").max(100),
   url: z.string().url("Must be a valid URL"),
-  interval: z.coerce.number().int().min(30 , "Min 30s").max(3600 , "Max 3600s").default(600) , 
-  region: z.string().min(1).default("us-east-1"),
+  interval: z.coerce.number().int().min(30 , "Min 30s").max(3600 , "Max 3600s").default(900) , 
+  region: z.string().min(1).default("USA"),
   dependencyIds: z.array(z.string()).default([]),
 });
 

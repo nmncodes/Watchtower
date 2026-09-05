@@ -38,11 +38,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         if (!valid) return null;
 
+        const adminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase();
+        const isAdmin = user.role === "ADMIN" || Boolean(adminEmail && user.email?.toLowerCase() === adminEmail);
+
         return {
           id: user.id,
           email: user.email,
           name: user.name,
           image: user.image,
+          role: isAdmin ? "ADMIN" : user.role,
         };
       },
     }),

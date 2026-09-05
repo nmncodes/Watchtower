@@ -16,7 +16,9 @@
     "worker:scheduler": "npx tsx workers/scheduler.ts",
     "worker:all-in-one": "npx tsx workers/index.ts",
     "workers:all": "concurrently \"npm:worker:*\"",
-    "start:all": "concurrently \"next start\" \"npm run worker:all-in-one\""
+    "start:all": "concurrently \"next start\" \"npm run worker:all-in-one\"",
+    "check": "npx tsx scripts/check.ts",
+    "set-admin": "npx tsx scripts/set-admin.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",

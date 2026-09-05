@@ -15,14 +15,22 @@ export async function POST(
 ) {
   const { id } = await params;
   try {
-    const rateLimit = await checkRateLimit(10, 60_000, "manual-check");
-    if (!rateLimit.success) {
-      return NextResponse.json({ error: "Too many requests" }, { status: 429 });
-    }
-
     const actor = await getCurrentMonitorActor();
     if (!actor) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Role-based Rate Limiting on "Check Now":
+    // ADMIN has unlimited manual checks.
+    // Regular users are rate-limited to 1 check every 15 minutes (900,000 ms).
+    if (actor.role !== "ADMIN") {
+      const rateLimit = await checkRateLimit(1, 15 * 60_000, `manual-check-${actor.userId}`);
+      if (!rateLimit.success) {
+        return NextResponse.json(
+          { error: "Rate limit exceeded. Regular users can trigger a manual check once every 15 minutes." },
+          { status: 429 }
+        );
+      }
     }
 
     const monitor = await prisma.monitor.findFirst({

@@ -107,11 +107,11 @@ export function CreateMonitorDialog({ onCreated }: CreateMonitorDialogProps) {
             {errors.url && <p className="text-sm text-destructive mt-1">{errors.url}</p>}
           </div>
 
-          <input type="hidden" name="interval" value="600" />
-          <input type="hidden" name="region" value="us-east-1" />
+          <input type="hidden" name="interval" value="900" />
+          <input type="hidden" name="region" value="USA" />
           
           <div className="text-sm text-muted-foreground p-2 bg-muted/50 rounded-md">
-            Monitor will check every 10 minutes.
+            Monitor will check every 15 minutes.
           </div>
 
           <div className="flex justify-end gap-2 pt-2">

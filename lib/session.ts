@@ -1,8 +1,12 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
+export type UserRole = "ADMIN" | "USER";
+
 export type MonitorActor = {
   userId: string;
+  role: UserRole;
+  email?: string | null;
 };
 
 /*
@@ -24,12 +28,16 @@ export async function getCurrentMonitorActor(): Promise<MonitorActor | null> {
   // users that do not exist in the current database.
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { id: true },
+    select: { id: true, role: true, email: true },
   });
 
   if (!user) {
     return null;
   }
 
-  return { userId: user.id };
+  const adminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase();
+  const isAdminByEmail = Boolean(adminEmail && user.email?.toLowerCase() === adminEmail);
+  const role: UserRole = user.role === "ADMIN" || isAdminByEmail ? "ADMIN" : "USER";
+
+  return { userId: user.id, role, email: user.email };
 }
